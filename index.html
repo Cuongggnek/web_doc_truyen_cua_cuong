@@ -530,9 +530,25 @@ function writeJSON(key, value) {
 let settings = Object.assign({}, DEFAULT_SETTINGS, readJSON(LS.settings, {}));
 let favorites = readJSON(LS.favorites, []);          // mảng storyId
 let history = readJSON(LS.history, []);              // [{storyId, chapterId, order, scroll, at, ...}]
-let auth = readJSON(LS.auth, { user: null });
+let auth = readJSON(LS.auth, { token: null });
 
-const ADMIN_ACCOUNT = { username: "cuong_admin", password: "123456" };
+/**
+ * Tài khoản quản trị KHÔNG lưu ở dạng chữ thường trong mã nguồn.
+ * Chỉ lưu mã băm FNV-1a của tên đăng nhập và mật khẩu, nên người mở file
+ * bằng trình soạn thảo không đọc được trực tiếp tài khoản của bạn.
+ * Muốn đổi tài khoản: mở Console của trình duyệt, chạy
+ *   ["tq|ten_moi","tq|mat_khau_moi"].map(s=>{let x=2166136261>>>0;for(let i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619)>>>0}return x.toString(36)})
+ * rồi dán hai chuỗi kết quả vào ADMIN_HASH bên dưới.
+ * Lưu ý: đây là biện pháp che giấu, không phải mã hóa an toàn.
+ */
+const ADMIN_HASH = { user: "12n5nro", pass: "174ttdd" };
+
+function fnv1a(str) {
+  let h = 2166136261 >>> 0;
+  const s = "tq|" + str;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(36);
+}
 
 function saveSettings() { writeJSON(LS.settings, settings); }
 function saveFavorites() { writeJSON(LS.favorites, favorites); }
@@ -560,7 +576,7 @@ function applySettings() {
   }
 }
 
-function isAdmin() { return auth && auth.user === ADMIN_ACCOUNT.username; }
+function isAdmin() { return !!auth && auth.token === ADMIN_HASH.user; }
 
 /** Ghi nhận vị trí đọc; mỗi truyện chỉ giữ một mục lịch sử mới nhất. */
 function trackHistory(story, chapter, scroll) {
@@ -1271,7 +1287,7 @@ async function renderAdmin() {
   </div>`;
 
   $("#logoutBtn").onclick = () => {
-    auth = { user: null }; writeJSON(LS.auth, auth);
+    auth = { token: null }; writeJSON(LS.auth, auth);
     toast("Đã đăng xuất"); render();
   };
   $$(".tabs [data-tab]").forEach((b) => {
@@ -1290,7 +1306,7 @@ function renderLogin() {
   <div class="wrap" style="max-width:440px">
     <div class="card" style="padding:26px;margin-top:40px">
       <h2 style="font-family:Literata,serif;margin:0 0 6px;font-size:22px">Đăng nhập quản trị</h2>
-      <p class="muted" style="margin-top:0;font-size:14px">Tài khoản quản trị: <b>cuong_admin</b> / <b>123456</b></p>
+      <p class="muted" style="margin-top:0;font-size:14px">Khu vực dành riêng cho người quản lý nội dung.</p>
       <div class="field"><label for="u">Tên đăng nhập</label><input class="input" id="u" autocomplete="username"></div>
       <div class="field"><label for="p">Mật khẩu</label><input class="input" id="p" type="password" autocomplete="current-password"></div>
       <div id="loginErr" class="muted" style="color:var(--warn);font-size:13.5px;min-height:20px"></div>
@@ -1304,8 +1320,8 @@ function renderLogin() {
 
   const submit = () => {
     const u = $("#u").value.trim(), p = $("#p").value;
-    if (u === ADMIN_ACCOUNT.username && p === ADMIN_ACCOUNT.password) {
-      auth = { user: u, at: Date.now() };
+    if (fnv1a(u) === ADMIN_HASH.user && fnv1a(p) === ADMIN_HASH.pass) {
+      auth = { token: fnv1a(u), at: Date.now() };
       writeJSON(LS.auth, auth);
       toast("Đã đăng nhập với quyền quản trị");
       render();
