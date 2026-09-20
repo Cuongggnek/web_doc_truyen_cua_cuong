@@ -532,7 +532,7 @@ let favorites = readJSON(LS.favorites, []);          // mảng storyId
 let history = readJSON(LS.history, []);              // [{storyId, chapterId, order, scroll, at, ...}]
 let auth = readJSON(LS.auth, { user: null });
 
-const ADMIN_ACCOUNT = { username: "admin", password: "admin123" };
+const ADMIN_ACCOUNT = { username: "cuong_admin", password: "123456" };
 
 function saveSettings() { writeJSON(LS.settings, settings); }
 function saveFavorites() { writeJSON(LS.favorites, favorites); }
@@ -596,47 +596,26 @@ async function getChapters(storyId, force = false) {
 function invalidate(storyId) { if (storyId) chapterCache.delete(storyId); else chapterCache.clear(); }
 function storyById(id) { return stories.find((s) => s.id === id) || null; }
 
-/** Tạo dữ liệu mẫu khi mở ứng dụng lần đầu (CSDL trống). */
-async function seedIfEmpty() {
-  const count = await DB._p(DB.store("stories").count());
-  if (count > 0) return;
-
-  const now = Date.now();
-  const s1 = {
-    id: uid("st"), title: "Gió Qua Đồi Sim", author: "Lam Nguyên",
-    description: "Một mùa hè cuối cấp ở thị trấn ven đồi, nơi bốn người bạn hẹn nhau trồng lại vườn sim đã chết khô sau trận cháy năm trước. Câu chuyện nhẹ nhàng về việc lớn lên, về những lời hứa giữ được và những lời hứa đành lỡ.",
-    genres: ["Thanh xuân", "Đời thường"], status: "ongoing", cover: "",
-    featured: true, createdAt: now - 86400000 * 12, updatedAt: now - 3600000 * 5
-  };
-  const s2 = {
-    id: uid("st"), title: "Người Gác Hải Đăng Cuối Cùng", author: "Trần Hạ Vũ",
-    description: "Ngọn hải đăng ở mũi đá sắp được thay bằng đèn tự động. Ông Bảy còn đúng ba mươi đêm trực cuối cùng, và mỗi đêm ông kể lại một con tàu từng đi qua vùng biển này.",
-    genres: ["Tâm lý", "Biển đảo"], status: "completed", cover: "",
-    featured: true, createdAt: now - 86400000 * 40, updatedAt: now - 86400000 * 2
-  };
-
-  const mk = (story, order, title, body) => ({
-    id: uid("ch"), storyId: story.id, order, title, content: body,
-    createdAt: now, updatedAt: now
-  });
-
-  const chapters = [
-    mk(s1, 1, "Ngày cuối cùng của tháng Năm",
-      "Trống trường đánh hồi cuối lúc bốn giờ chiều. Hạ đứng lại ở bậc tam cấp, nghe tiếng ve dội xuống từ hàng phượng già, và nghĩ rằng mình sẽ nhớ âm thanh này rất lâu.\n\nĐồi sim nằm phía sau trường, cách một con mương cạn. Sau trận cháy mùa khô năm ngoái, cả vạt đồi chỉ còn gốc đen và cỏ tranh. Người lớn bảo cứ để vậy, vài năm nữa tự nó lên. Nhưng bốn đứa không đợi được vài năm, vì tháng Chín này mỗi đứa một nơi.\n\n\"Trồng lại đi,\" Khoa nói, tay vẫn cầm chiếc cặp sách rách quai. \"Trồng trước khi tụi mình đi.\"\n\nKhông ai trả lời ngay. Gió thổi ngang, mang theo mùi đất nóng và mùi khói còn sót trong trí nhớ. Hạ gật đầu trước tiên."),
-    mk(s1, 2, "Mười bảy gốc sim",
-      "Sáng hôm sau cả bọn có mặt lúc năm giờ, khi sương còn đọng trên cỏ tranh. Bà Tư bán giống cho mượn cuốc, đổi lại mỗi đứa phải hứa tưới đủ ba tháng.\n\nHọ đếm được mười bảy gốc sim con trong bầu đất. Mười bảy, bằng đúng số tuổi của cả bọn năm nay. Nhung cười bảo đó là điềm lành, còn Khoa thì nói điềm gì cũng không bằng nước tưới.\n\nĐất đồi cứng hơn họ tưởng. Đến trưa, tay ai cũng phồng rộp. Nhưng đến chiều thì mười bảy cái hố đã xong, thẳng hàng nhìn ra hướng mặt trời lặn.\n\n\"Nếu sang năm tụi mình không về được thì sao?\" Nhung hỏi.\n\n\"Thì sim vẫn lớn,\" Hạ nói. \"Nó đâu cần tụi mình có mặt mới chịu lớn.\""),
-    mk(s1, 3, "Trận mưa đầu mùa",
-      "Mưa đến vào đêm thứ chín, đúng lúc cả bọn đã gần như tuyệt vọng vì giếng cạn. Mưa rơi trên mái tôn nhà Khoa nghe như ai đổ cả một bao sỏi.\n\nHạ chạy ra hiên, đứng nhìn về phía đồi tối, và lần đầu tiên trong mùa hè đó, cô thấy nhẹ người. Mưa sẽ làm phần việc mà bốn đứa không làm nổi.\n\nSáng ra, đồi sim ướt sẫm. Mười bảy gốc vẫn đứng, lá non bám đầy bùn nhưng không gãy cái nào. Khoa lấy que gạch lên nền đất một vạch, đánh dấu ngày.\n\nHọ không biết rằng đó là trận mưa duy nhất của tháng Sáu năm ấy."),
-    mk(s2, 1, "Đêm thứ ba mươi",
-      "Đèn quay một vòng hết mười hai giây. Ông Bảy biết con số đó rõ hơn biết nhịp tim mình. Ba mươi đêm nữa, người ta sẽ lắp bộ đèn tự động, và cái cầu thang xoắn một trăm hai mươi bậc này sẽ không cần ai leo nữa.\n\nThằng Quân, kỹ sư trẻ được cử ra bàn giao, mang theo máy tính bảng và một bảng kiểm dài hai trang. Nó hỏi ông về thông số. Ông trả lời bằng tên những con tàu.\n\n\"Chú nhớ hết à?\"\n\n\"Nhớ hết,\" ông Bảy nói. \"Tàu nào đi qua đây ban đêm là tôi thấy. Thấy thì nhớ.\""),
-    mk(s2, 2, "Tàu Hải Vân 06",
-      "Con tàu đầu tiên ông kể là một tàu cá vỏ gỗ, số hiệu Hải Vân 06, vào một đêm tháng Mười một gió mùa.\n\nNó chạy sát bờ đá hơn mức an toàn, chắc vì muốn cắt đường về cho kịp con nước. Ông Bảy đã làm điều duy nhất ông có thể làm: chỉnh đèn, rồi đứng đó nhìn.\n\n\"Rồi sao chú?\" Quân hỏi, tay vẫn cầm bút.\n\n\"Rồi nó về tới,\" ông đáp, giọng bình thản. \"Không phải đêm nào cũng vậy. Nhưng đêm đó thì có.\"\n\nQuân đặt bút xuống. Bảng kiểm hai trang nằm im trên bàn suốt phần còn lại của đêm."),
-    mk(s2, 3, "Bàn giao",
-      "Đêm cuối, ông Bảy leo một trăm hai mươi bậc chậm hơn thường lệ. Không phải vì mệt, mà vì đếm.\n\nBộ đèn mới đã lắp xong từ chiều, sáng đều và lạnh, không cần ai lau bóng. Quân đứng cạnh, im lặng rất lâu, rồi hỏi ông có muốn bật cữ đầu tiên không.\n\nÔng Bảy lắc đầu. \"Để nó tự bật. Từ nay là việc của nó.\"\n\nHai người xuống thang lúc gần sáng. Phía sau lưng, ánh đèn vẫn quay đúng mười hai giây một vòng, không sai một nhịp nào, và sẽ còn quay như vậy rất lâu sau khi không còn ai nhớ tên người từng leo lên đó mỗi đêm.")
-  ];
-
-  await DB.bulkPut("stories", [s1, s2]);
-  await DB.bulkPut("chapters", chapters);
+/**
+ * Dọn dẹp dữ liệu mẫu cũ (nếu phiên bản trước đã tạo) đúng MỘT lần.
+ * Ứng dụng không còn tự tạo truyện mẫu: kho truyện bắt đầu rỗng.
+ */
+const SEED_TITLES = ["Gió Qua Đồi Sim", "Người Gác Hải Đăng Cuối Cùng"];
+async function purgeDemoDataOnce() {
+  if (localStorage.getItem("tq.demoPurged.v1") === "1") return;
+  try {
+    const all = await DB.all("stories");
+    const demo = all.filter((s) => SEED_TITLES.includes(s.title));
+    for (const s of demo) {
+      await DB.deleteStoryCascade(s.id);
+      favorites = favorites.filter((id) => id !== s.id);
+      history = history.filter((h) => h.storyId !== s.id);
+    }
+    if (demo.length) { saveFavorites(); saveHistory(); invalidate(); }
+  } catch (err) {
+    console.warn("Không dọn được dữ liệu mẫu cũ:", err);
+  }
+  localStorage.setItem("tq.demoPurged.v1", "1");
 }
 
 /* ---------------------------------------------------------------------
@@ -1311,7 +1290,7 @@ function renderLogin() {
   <div class="wrap" style="max-width:440px">
     <div class="card" style="padding:26px;margin-top:40px">
       <h2 style="font-family:Literata,serif;margin:0 0 6px;font-size:22px">Đăng nhập quản trị</h2>
-      <p class="muted" style="margin-top:0;font-size:14px">Tài khoản mặc định: <b>admin</b> / <b>admin123</b></p>
+      <p class="muted" style="margin-top:0;font-size:14px">Tài khoản quản trị: <b>cuong_admin</b> / <b>123456</b></p>
       <div class="field"><label for="u">Tên đăng nhập</label><input class="input" id="u" autocomplete="username"></div>
       <div class="field"><label for="p">Mật khẩu</label><input class="input" id="p" type="password" autocomplete="current-password"></div>
       <div id="loginErr" class="muted" style="color:var(--warn);font-size:13.5px;min-height:20px"></div>
@@ -1876,8 +1855,7 @@ function panelBackup() {
     favorites = []; history = [];
     saveFavorites(); saveHistory();
     invalidate();
-    await seedIfEmpty();
-    toast("Đã xóa sạch và tạo lại truyện mẫu");
+    toast("Đã xóa sạch toàn bộ dữ liệu");
     render();
   };
 }
@@ -1948,7 +1926,7 @@ window.addEventListener("hashchange", render);
     view.innerHTML = '<div class="wrap"><div class="empty" style="margin-top:40px"><strong>Trình duyệt chặn IndexedDB</strong>Ứng dụng cần IndexedDB để lưu truyện. Hãy tắt chế độ duyệt web riêng tư hoặc cho phép lưu dữ liệu cho trang này.</div></div>';
     return;
   }
-  await seedIfEmpty();
+  await purgeDemoDataOnce();
   await refreshStories();
   if (!location.hash) location.hash = "#/";
   await render();
