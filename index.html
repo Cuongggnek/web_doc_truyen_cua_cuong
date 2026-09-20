@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thư Quán — Đọc truyện chữ</title>
+<meta name="description" content="Thư Quán: ứng dụng đọc truyện chữ chạy hoàn toàn trên trình duyệt, lưu dữ liệu bằng IndexedDB.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&display=swap" rel="stylesheet">
+<style>
+/* =========================================================================
+   THƯ QUÁN — Hệ thống token giao diện
+   Bảng màu: mực đen + ngọc bích (jade) + giấy dó. Chữ: Be Vietnam Pro (UI),
+   Literata (nội dung đọc).
+   ========================================================================= */
+:root{
+  --bg:#eef1ed;
+  --surface:#ffffff;
+  --surface-2:#e4e9e3;
+  --text:#14201b;
+  --muted:#5d6b63;
+  --border:#d4dbd4;
+  --accent:#1f6b4c;
+  --accent-ink:#ffffff;
+  --accent-soft:#dcece3;
+  --warn:#9a3412;
+  --radius-s:8px;
+  --radius:14px;
+  --radius-l:22px;
+  --shadow-s:0 1px 2px rgba(20,32,27,.06);
+  --shadow:0 12px 30px -18px rgba(20,32,27,.45);
+  --maxw:1160px;
+  --reader-font-size:19px;
+  --reader-line:1.75;
+  --reader-family:"Literata",Georgia,"Times New Roman",serif;
+  --reader-measure:41rem;
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --bg:#0f1512;
+  --surface:#161d19;
+  --surface-2:#1e2723;
+  --text:#e4eae5;
+  --muted:#93a099;
+  --border:#27322c;
+  --accent:#5fc295;
+  --accent-ink:#06120d;
+  --accent-soft:#192b22;
+  --warn:#f0a882;
+  --shadow:0 12px 30px -18px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(72px + env(safe-area-inset-top,0px))}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;
+  line-height:1.55;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  min-height:100vh;
+}
+body[data-rt="sepia"]{background:#efe4cd}
+body[data-rt="dark"]{background:#11130f}
+body[data-rt="light"]{background:#e9ece8}
+img{max-width:100%;display:block}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- Thành phần dùng chung ---------- */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 18px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  padding:9px 15px;border-radius:999px;cursor:pointer;font-weight:500;font-size:14px;
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+.btn:hover{background:var(--surface-2)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{filter:brightness(1.07);background:var(--accent)}
+.btn-ghost{background:transparent;border-color:transparent}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-danger{color:var(--warn);border-color:var(--border)}
+.btn-danger:hover{background:var(--accent-soft)}
+.btn-sm{padding:6px 11px;font-size:13px}
+.btn-icon{width:38px;height:38px;padding:0;border-radius:50%}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;color:var(--muted);font-weight:500}
+.input,select.input,textarea.input{
+  width:100%;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-s);padding:10px 12px;font-size:15px;
+}
+textarea.input{resize:vertical;min-height:96px;line-height:1.6}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;
+  padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);
+}
+.chip-ongoing{background:var(--accent-soft);color:var(--accent)}
+.chip-completed{background:#e7e2d3;color:#7a5c1e}
+html[data-theme="dark"] .chip-completed{background:#2a2617;color:#d8bd72}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-s)}
+.muted{color:var(--muted)}
+.hidden{display:none!important}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:34px 0 14px}
+.section-head h2{font-family:"Literata",serif;font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+.empty{
+  border:1px dashed var(--border);border-radius:var(--radius);padding:38px 22px;text-align:center;color:var(--muted);
+}
+.empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px;font-family:"Literata",serif}
+
+/* ---------- Header ---------- */
+.site-header{
+  position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
+  padding-top:env(safe-area-inset-top,0px);
+}
+.header-inner{max-width:var(--maxw);margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex:none}
+.brand-mark{
+  width:36px;height:36px;border-radius:11px;background:var(--accent);color:var(--accent-ink);
+  display:grid;place-items:center;font-family:"Literata",serif;font-weight:600;font-size:19px;
+}
+.brand-name{font-family:"Literata",serif;font-size:19px;font-weight:600;letter-spacing:-.02em}
+.brand-sub{display:block;font-size:11px;color:var(--muted);font-family:"Be Vietnam Pro",sans-serif;font-weight:400;letter-spacing:.02em}
+.search-box{flex:1;max-width:420px;position:relative;margin-left:8px}
+.search-box .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.search-box input{width:100%;padding:9px 14px 9px 38px;border-radius:999px;border:1px solid var(--border);background:var(--surface)}
+.header-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.header-actions .label{display:none}
+@media (min-width:980px){.header-actions .label{display:inline}}
+body.focus-mode .site-header,body.focus-mode .bottom-nav{display:none}
+
+/* ---------- Trang chủ ---------- */
+.hero{
+  margin-top:22px;display:grid;gap:18px;grid-template-columns:1fr;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);
+  padding:26px;box-shadow:var(--shadow);
+}
+@media(min-width:820px){.hero{grid-template-columns:1.15fr .85fr;align-items:center;padding:34px}}
+.hero h1{font-family:"Literata",serif;font-size:clamp(26px,4vw,38px);line-height:1.18;margin:0 0 10px;letter-spacing:-.02em}
+.hero p{margin:0 0 18px;color:var(--muted);max-width:46ch}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px}
+.resume-card{display:flex;gap:14px;align-items:center;background:var(--surface-2);border-radius:var(--radius);padding:14px}
+.resume-card img,.resume-card .cover-fallback{width:58px;height:82px;border-radius:8px;object-fit:cover;flex:none}
+.resume-card h3{margin:0 0 2px;font-size:15px;font-weight:600}
+.resume-card p{margin:0 0 8px;font-size:13px;color:var(--muted)}
+.stat-strip{display:flex;gap:22px;flex-wrap:wrap;margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}
+.stat-strip div{display:flex;flex-direction:column}
+.stat-strip b{font-family:"Literata",serif;font-size:22px;font-weight:600}
+.stat-strip span{font-size:12px;color:var(--muted)}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 4px}
+.filters select,.filters input{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 13px;font-size:14px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(148px,1fr))}
+@media(min-width:760px){.grid{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}}
+.story-card{
+  display:flex;flex-direction:column;gap:8px;background:transparent;border:0;padding:0;text-align:left;cursor:pointer;
+}
+.cover{
+  position:relative;aspect-ratio:2/3;border-radius:var(--radius);overflow:hidden;background:var(--surface-2);
+  border:1px solid var(--border);box-shadow:var(--shadow-s);
+}
+.cover img{width:100%;height:100%;object-fit:cover}
+.cover-fallback{
+  width:100%;height:100%;display:grid;place-items:center;text-align:center;padding:12px;
+  font-family:"Literata",serif;font-size:15px;color:var(--muted);
+  background:linear-gradient(160deg,var(--surface-2),var(--accent-soft));
+}
+.cover .chip{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;backdrop-filter:blur(4px)}
+.story-card h3{margin:0;font-size:15px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.story-card .meta{font-size:12.5px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap}
+
+/* ---------- Chi tiết truyện ---------- */
+.detail{display:grid;gap:26px;grid-template-columns:1fr;margin-top:24px}
+@media(min-width:800px){.detail{grid-template-columns:240px 1fr}}
+.detail .cover{aspect-ratio:2/3}
+.detail h1{font-family:"Literata",serif;font-size:clamp(23px,3.4vw,32px);margin:0 0 8px;letter-spacing:-.02em;line-height:1.2}
+.detail .byline{color:var(--muted);margin:0 0 14px}
+.tag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.desc{line-height:1.7;max-width:64ch}
+.desc.collapsed{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.detail-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+.chapter-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 12px}
+.chapter-list{display:grid;gap:2px}
+.chapter-row{
+  display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:11px 12px;border:0;border-radius:10px;
+  background:transparent;cursor:pointer;border-bottom:1px solid var(--border);
+}
+.chapter-row:hover{background:var(--surface-2)}
+.chapter-row .num{font-family:"Literata",serif;color:var(--muted);min-width:46px;font-size:14px}
+.chapter-row .t{flex:1;font-size:14.5px}
+.chapter-row .read-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+/* ---------- Trang đọc ---------- */
+.reader-toolbar{
+  position:sticky;top:0;z-index:35;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border);
+  padding-top:env(safe-area-inset-top,0px);
+}
+body.focus-mode .reader-toolbar{position:fixed;left:0;right:0;transform:translateY(-102%);transition:transform .2s ease}
+body.focus-mode .reader-toolbar:hover,body.focus-mode .reader-toolbar:focus-within{transform:translateY(0)}
+.toolbar-inner{max-width:var(--maxw);margin:0 auto;padding:9px 14px;display:flex;align-items:center;gap:8px}
+.toolbar-inner select{max-width:min(46vw,380px);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 12px;font-size:14px}
+.progress-track{height:3px;background:var(--border)}
+.progress-fill{height:100%;width:0;background:var(--accent);transition:width .08s linear}
+.reader-surface{min-height:70vh;padding:34px 18px 120px}
+.reader-surface[data-rt="light"]{background:#ffffff;color:#14201b}
+.reader-surface[data-rt="sepia"]{background:#f6ecd6;color:#4a3a27}
+.reader-surface[data-rt="dark"]{background:#151814;color:#ddd9cf}
+.reader-inner{max-width:var(--reader-measure);margin:0 auto}
+.reader-inner .ch-title{font-family:var(--reader-family);font-size:calc(var(--reader-font-size) * 1.35);margin:0 0 6px;line-height:1.3;font-weight:600}
+.reader-inner .ch-sub{font-size:13px;opacity:.65;margin:0 0 26px}
+.reader-body{font-family:var(--reader-family);font-size:var(--reader-font-size);line-height:var(--reader-line)}
+.reader-body p{margin:0 0 1.15em;text-align:justify;hyphens:auto}
+.reader-nav{display:flex;gap:10px;justify-content:space-between;margin-top:38px;padding-top:20px;border-top:1px solid currentColor;border-color:color-mix(in srgb,currentColor 18%,transparent)}
+.settings-pop{
+  position:absolute;right:14px;top:calc(100% + 8px);width:min(320px,calc(100vw - 28px));
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:16px;z-index:50;
+}
+.settings-pop h4{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:500}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.seg button{flex:1;min-width:64px;padding:8px 6px;border:1px solid var(--border);background:var(--surface);border-radius:9px;cursor:pointer;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* ---------- Admin ---------- */
+.admin-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:18px 0 8px}
+.stat-card{padding:18px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border)}
+.stat-card b{display:block;font-family:"Literata",serif;font-size:27px;font-weight:600;letter-spacing:-.02em}
+.stat-card span{font-size:13px;color:var(--muted)}
+.notice{
+  border:1px solid var(--border);background:var(--accent-soft);color:var(--text);
+  border-radius:var(--radius);padding:13px 15px;font-size:13.5px;line-height:1.6;margin:16px 0;
+}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:22px 0 18px}
+.tabs button{
+  border:0;background:transparent;padding:10px 14px;cursor:pointer;font-size:14.5px;font-weight:500;
+  color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.table{width:100%;border-collapse:collapse;font-size:14px}
+.table th,.table td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.table th{font-size:12.5px;color:var(--muted);font-weight:500}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.two-col{display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:860px){.two-col{grid-template-columns:1fr 1fr}}
+.preview-list{max-height:330px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.preview-list div.item{padding:10px 13px;border-bottom:1px solid var(--border)}
+.preview-list div.item:last-child{border-bottom:0}
+.preview-list .pt{font-weight:600;font-size:14px}
+.preview-list .pp{font-size:12.5px;color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s ease}
+
+/* ---------- Modal, toast, bottom nav ---------- */
+.modal-backdrop{position:fixed;inset:0;background:rgba(8,14,11,.55);z-index:80;display:grid;place-items:center;padding:16px}
+.modal{
+  background:var(--surface);border-radius:var(--radius-l);border:1px solid var(--border);
+  width:min(640px,100%);max-height:88vh;overflow:auto;box-shadow:var(--shadow);padding:22px;
+}
+.modal h3{margin:0 0 14px;font-family:"Literata",serif;font-size:19px;font-weight:600}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;box-shadow:var(--shadow);max-width:90vw}
+.bottom-nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:38;display:flex;justify-content:space-around;
+  background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(10px);
+  border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
+}
+.bottom-nav button{
+  flex:1;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 2px;font-size:11px;color:var(--muted);cursor:pointer;
+}
+.bottom-nav button[aria-current="true"]{color:var(--accent)}
+@media(min-width:900px){.bottom-nav{display:none}}
+main{padding-bottom:96px}
+@media(min-width:900px){main{padding-bottom:56px}}
+.site-footer{border-top:1px solid var(--border);margin-top:44px;padding:22px 0 30px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<header class="site-header" id="siteHeader">
+  <div class="header-inner">
+    <a class="brand" href="#/" id="brandLink">
+      <span class="brand-mark">書</span>
+      <span class="brand-name">Thư Quán<span class="brand-sub">Tủ truyện của riêng bạn</span></span>
+    </a>
+    <div class="search-box">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input id="globalSearch" type="search" placeholder="Tìm tên truyện hoặc tác giả" autocomplete="off" aria-label="Tìm truyện">
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" data-nav="#/favorites" title="Truyện yêu thích">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 20s-7-4.35-7-9a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 4.65-7 9-7 9Z"></path></svg><span class="label">Yêu thích</span>
+      </button>
+      <button class="btn btn-ghost btn-sm" data-nav="#/history" title="Lịch sử đọc">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="label">Lịch sử</span>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="themeToggle" title="Đổi nền sáng/tối" aria-label="Đổi nền sáng/tối"></button>
+      <button class="btn btn-sm" data-nav="#/admin" id="adminBtn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 6.5v5c0 4.5 3.3 8.3 8 9.5 4.7-1.2 8-5 8-9.5v-5Z"></path></svg><span class="label">Quản trị</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="view" tabindex="-1"></main>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button data-nav="#/" data-key="home"><svg class="icon" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20H4Z"></path></svg>Trang chủ</button>
+  <button data-nav="#/library" data-key="library"><svg class="icon" viewBox="0 0 24 24"><path d="M5 4h5v16H5zM14 4h5v16h-5z"></path></svg>Kho truyện</button>
+  <button data-nav="#/favorites" data-key="favorites"><svg class="icon" viewBox="0 0 24 24"><path d="M12 20s-7-4.35-7-9a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 4.65-7 9-7 9Z"></path></svg>Yêu thích</button>
+  <button data-nav="#/history" data-key="history"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Lịch sử</button>
+  <button data-nav="#/admin" data-key="admin"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 6.5v5c0 4.5 3.3 8.3 8 9.5 4.7-1.2 8-5 8-9.5v-5Z"></path></svg>Quản trị</button>
+</nav>
+
+<div id="modalRoot"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+/* =========================================================================
+ * THƯ QUÁN — Web Reader chạy hoàn toàn phía client
+ * Kiến trúc: Vanilla JS ES6+, SPA định tuyến bằng hash, dữ liệu lưu trong
+ * IndexedDB (truyện/chương/ảnh bìa) và localStorage (cài đặt cá nhân).
+ * ========================================================================= */
+(function () {
+"use strict";
+
+/* ---------------------------------------------------------------------
+ * 0. Tiện ích chung
+ * ------------------------------------------------------------------ */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+/** Sinh id duy nhất dạng chuỗi ngắn, đủ dùng cho ứng dụng client. */
+const uid = (p = "id") => p + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+/** Chuyển ký tự nguy hiểm thành entity để chèn an toàn vào innerHTML. */
+function esc(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** Bỏ dấu tiếng Việt để tìm kiếm không phân biệt dấu. */
+function slugify(str) {
+  return String(str || "").toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").trim();
+}
+
+function debounce(fn, ms = 220) {
+  let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+function throttle(fn, ms = 400) {
+  let last = 0, timer = null;
+  return (...a) => {
+    const now = Date.now();
+    if (now - last >= ms) { last = now; fn(...a); }
+    else { clearTimeout(timer); timer = setTimeout(() => { last = Date.now(); fn(...a); }, ms - (now - last)); }
+  };
+}
+function fmtDate(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+function fmtRelative(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "vừa xong";
+  if (m < 60) return m + " phút trước";
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + " giờ trước";
+  const d = Math.floor(h / 24);
+  if (d < 30) return d + " ngày trước";
+  return fmtDate(ts);
+}
+function fmtBytes(n) {
+  if (!n && n !== 0) return "—";
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1048576).toFixed(2) + " MB";
+}
+
+/** Toast thông báo ngắn ở đáy màn hình. */
+function toast(msg, ms = 2600) {
+  const box = $("#toasts");
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => el.remove(), ms);
+}
+
+/* ---------------------------------------------------------------------
+ * 1. Tầng IndexedDB
+ * ------------------------------------------------------------------ */
+const DB = {
+  name: "thuquan_db",
+  version: 1,
+  handle: null,
+
+  /** Mở kết nối và tạo object store nếu chưa có. */
+  open() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.name, this.version);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("stories")) {
+          const s = db.createObjectStore("stories", { keyPath: "id" });
+          s.createIndex("updatedAt", "updatedAt");
+        }
+        if (!db.objectStoreNames.contains("chapters")) {
+          const c = db.createObjectStore("chapters", { keyPath: "id" });
+          c.createIndex("storyId", "storyId");
+          c.createIndex("storyOrder", ["storyId", "order"]);
+        }
+      };
+      req.onsuccess = () => { this.handle = req.result; resolve(this.handle); };
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  /** Bọc IDBRequest thành Promise. */
+  _p(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  store(name, mode = "readonly") {
+    return this.handle.transaction(name, mode).objectStore(name);
+  },
+
+  all(storeName) { return this._p(this.store(storeName).getAll()); },
+  get(storeName, key) { return this._p(this.store(storeName).get(key)); },
+  put(storeName, value) { return this._p(this.store(storeName, "readwrite").put(value)); },
+  del(storeName, key) { return this._p(this.store(storeName, "readwrite").delete(key)); },
+
+  /** Ghi nhiều bản ghi trong MỘT transaction để tăng tốc khi import. */
+  bulkPut(storeName, items) {
+    return new Promise((resolve, reject) => {
+      const tx = this.handle.transaction(storeName, "readwrite");
+      const st = tx.objectStore(storeName);
+      items.forEach((it) => st.put(it));
+      tx.oncomplete = () => resolve(items.length);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  },
+
+  clearAll() {
+    return new Promise((resolve, reject) => {
+      const tx = this.handle.transaction(["stories", "chapters"], "readwrite");
+      tx.objectStore("stories").clear();
+      tx.objectStore("chapters").clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  /** Lấy toàn bộ chương của một truyện, đã sắp xếp theo số thứ tự. */
+  async chaptersOf(storyId) {
+    const list = await this._p(this.store("chapters").index("storyId").getAll(storyId));
+    return list.sort((a, b) => a.order - b.order);
+  },
+
+  /** Xóa truyện kèm toàn bộ chương của nó. */
+  deleteStoryCascade(storyId) {
+    return new Promise((resolve, reject) => {
+      const tx = this.handle.transaction(["stories", "chapters"], "readwrite");
+      tx.objectStore("stories").delete(storyId);
+      const idx = tx.objectStore("chapters").index("storyId");
+      const cur = idx.openCursor(IDBKeyRange.only(storyId));
+      cur.onsuccess = (e) => {
+        const c = e.target.result;
+        if (c) { c.delete(); c.continue(); }
+      };
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+};
+
+/* ---------------------------------------------------------------------
+ * 2. Cài đặt & dữ liệu cá nhân trong localStorage
+ * ------------------------------------------------------------------ */
+const LS = {
+  settings: "tq.settings.v1",
+  favorites: "tq.favorites.v1",
+  history: "tq.history.v1",
+  auth: "tq.auth.v1"
+};
+
+const DEFAULT_SETTINGS = {
+  theme: "light",          // giao diện chung: light | dark
+  readerTheme: "light",    // nền trang đọc: light | sepia | dark
+  fontSize: 19,            // px
+  fontFamily: "serif",     // serif | sans
+  width: "medium",         // narrow | medium | full
+  focus: false             // chế độ đọc tập trung
+};
+
+function readJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (err) {
+    console.warn("Không đọc được localStorage:", key, err);
+    return fallback;
+  }
+}
+function writeJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch (err) { console.warn("Không ghi được localStorage:", key, err); }
+}
+
+let settings = Object.assign({}, DEFAULT_SETTINGS, readJSON(LS.settings, {}));
+let favorites = readJSON(LS.favorites, []);          // mảng storyId
+let history = readJSON(LS.history, []);              // [{storyId, chapterId, order, scroll, at, ...}]
+let auth = readJSON(LS.auth, { user: null });
+
+const ADMIN_ACCOUNT = { username: "admin", password: "admin123" };
+
+function saveSettings() { writeJSON(LS.settings, settings); }
+function saveFavorites() { writeJSON(LS.favorites, favorites); }
+function saveHistory() { writeJSON(LS.history, history); }
+
+/** Áp dụng toàn bộ cài đặt hiển thị lên DOM. */
+function applySettings() {
+  document.documentElement.dataset.theme = settings.theme;
+  document.body.classList.toggle("focus-mode", !!settings.focus);
+  const sizes = { narrow: "33rem", medium: "41rem", full: "58rem" };
+  document.documentElement.style.setProperty("--reader-measure", sizes[settings.width] || sizes.medium);
+  document.documentElement.style.setProperty("--reader-font-size", settings.fontSize + "px");
+  document.documentElement.style.setProperty(
+    "--reader-family",
+    settings.fontFamily === "sans"
+      ? '"Be Vietnam Pro",system-ui,sans-serif'
+      : '"Literata",Georgia,"Times New Roman",serif'
+  );
+  document.documentElement.style.setProperty("--reader-line", settings.fontFamily === "sans" ? "1.7" : "1.78");
+  const tt = $("#themeToggle");
+  if (tt) {
+    tt.innerHTML = settings.theme === "dark"
+      ? '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"></path></svg>'
+      : '<svg class="icon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"></path></svg>';
+  }
+}
+
+function isAdmin() { return auth && auth.user === ADMIN_ACCOUNT.username; }
+
+/** Ghi nhận vị trí đọc; mỗi truyện chỉ giữ một mục lịch sử mới nhất. */
+function trackHistory(story, chapter, scroll) {
+  const entry = {
+    storyId: story.id, storyTitle: story.title, cover: story.cover || "",
+    chapterId: chapter.id, chapterTitle: chapter.title, order: chapter.order,
+    scroll: Math.max(0, Math.round(scroll || 0)), at: Date.now()
+  };
+  history = history.filter((h) => h.storyId !== story.id);
+  history.unshift(entry);
+  if (history.length > 60) history = history.slice(0, 60);
+  saveHistory();
+}
+function historyOf(storyId) { return history.find((h) => h.storyId === storyId) || null; }
+
+/* ---------------------------------------------------------------------
+ * 3. Bộ nhớ đệm trong RAM + dữ liệu mẫu
+ * ------------------------------------------------------------------ */
+let stories = [];                 // cache toàn bộ truyện
+const chapterCache = new Map();   // storyId -> mảng chương (đã sắp xếp)
+
+async function refreshStories() {
+  stories = await DB.all("stories");
+  stories.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return stories;
+}
+async function getChapters(storyId, force = false) {
+  if (!force && chapterCache.has(storyId)) return chapterCache.get(storyId);
+  const list = await DB.chaptersOf(storyId);
+  chapterCache.set(storyId, list);
+  return list;
+}
+function invalidate(storyId) { if (storyId) chapterCache.delete(storyId); else chapterCache.clear(); }
+function storyById(id) { return stories.find((s) => s.id === id) || null; }
+
+/** Tạo dữ liệu mẫu khi mở ứng dụng lần đầu (CSDL trống). */
+async function seedIfEmpty() {
+  const count = await DB._p(DB.store("stories").count());
+  if (count > 0) return;
+
+  const now = Date.now();
+  const s1 = {
+    id: uid("st"), title: "Gió Qua Đồi Sim", author: "Lam Nguyên",
+    description: "Một mùa hè cuối cấp ở thị trấn ven đồi, nơi bốn người bạn hẹn nhau trồng lại vườn sim đã chết khô sau trận cháy năm trước. Câu chuyện nhẹ nhàng về việc lớn lên, về những lời hứa giữ được và những lời hứa đành lỡ.",
+    genres: ["Thanh xuân", "Đời thường"], status: "ongoing", cover: "",
+    featured: true, createdAt: now - 86400000 * 12, updatedAt: now - 3600000 * 5
+  };
+  const s2 = {
+    id: uid("st"), title: "Người Gác Hải Đăng Cuối Cùng", author: "Trần Hạ Vũ",
+    description: "Ngọn hải đăng ở mũi đá sắp được thay bằng đèn tự động. Ông Bảy còn đúng ba mươi đêm trực cuối cùng, và mỗi đêm ông kể lại một con tàu từng đi qua vùng biển này.",
+    genres: ["Tâm lý", "Biển đảo"], status: "completed", cover: "",
+    featured: true, createdAt: now - 86400000 * 40, updatedAt: now - 86400000 * 2
+  };
+
+  const mk = (story, order, title, body) => ({
+    id: uid("ch"), storyId: story.id, order, title, content: body,
+    createdAt: now, updatedAt: now
+  });
+
+  const chapters = [
+    mk(s1, 1, "Ngày cuối cùng của tháng Năm",
+      "Trống trường đánh hồi cuối lúc bốn giờ chiều. Hạ đứng lại ở bậc tam cấp, nghe tiếng ve dội xuống từ hàng phượng già, và nghĩ rằng mình sẽ nhớ âm thanh này rất lâu.\n\nĐồi sim nằm phía sau trường, cách một con mương cạn. Sau trận cháy mùa khô năm ngoái, cả vạt đồi chỉ còn gốc đen và cỏ tranh. Người lớn bảo cứ để vậy, vài năm nữa tự nó lên. Nhưng bốn đứa không đợi được vài năm, vì tháng Chín này mỗi đứa một nơi.\n\n\"Trồng lại đi,\" Khoa nói, tay vẫn cầm chiếc cặp sách rách quai. \"Trồng trước khi tụi mình đi.\"\n\nKhông ai trả lời ngay. Gió thổi ngang, mang theo mùi đất nóng và mùi khói còn sót trong trí nhớ. Hạ gật đầu trước tiên."),
+    mk(s1, 2, "Mười bảy gốc sim",
+      "Sáng hôm sau cả bọn có mặt lúc năm giờ, khi sương còn đọng trên cỏ tranh. Bà Tư bán giống cho mượn cuốc, đổi lại mỗi đứa phải hứa tưới đủ ba tháng.\n\nHọ đếm được mười bảy gốc sim con trong bầu đất. Mười bảy, bằng đúng số tuổi của cả bọn năm nay. Nhung cười bảo đó là điềm lành, còn Khoa thì nói điềm gì cũng không bằng nước tưới.\n\nĐất đồi cứng hơn họ tưởng. Đến trưa, tay ai cũng phồng rộp. Nhưng đến chiều thì mười bảy cái hố đã xong, thẳng hàng nhìn ra hướng mặt trời lặn.\n\n\"Nếu sang năm tụi mình không về được thì sao?\" Nhung hỏi.\n\n\"Thì sim vẫn lớn,\" Hạ nói. \"Nó đâu cần tụi mình có mặt mới chịu lớn.\""),
+    mk(s1, 3, "Trận mưa đầu mùa",
+      "Mưa đến vào đêm thứ chín, đúng lúc cả bọn đã gần như tuyệt vọng vì giếng cạn. Mưa rơi trên mái tôn nhà Khoa nghe như ai đổ cả một bao sỏi.\n\nHạ chạy ra hiên, đứng nhìn về phía đồi tối, và lần đầu tiên trong mùa hè đó, cô thấy nhẹ người. Mưa sẽ làm phần việc mà bốn đứa không làm nổi.\n\nSáng ra, đồi sim ướt sẫm. Mười bảy gốc vẫn đứng, lá non bám đầy bùn nhưng không gãy cái nào. Khoa lấy que gạch lên nền đất một vạch, đánh dấu ngày.\n\nHọ không biết rằng đó là trận mưa duy nhất của tháng Sáu năm ấy."),
+    mk(s2, 1, "Đêm thứ ba mươi",
+      "Đèn quay một vòng hết mười hai giây. Ông Bảy biết con số đó rõ hơn biết nhịp tim mình. Ba mươi đêm nữa, người ta sẽ lắp bộ đèn tự động, và cái cầu thang xoắn một trăm hai mươi bậc này sẽ không cần ai leo nữa.\n\nThằng Quân, kỹ sư trẻ được cử ra bàn giao, mang theo máy tính bảng và một bảng kiểm dài hai trang. Nó hỏi ông về thông số. Ông trả lời bằng tên những con tàu.\n\n\"Chú nhớ hết à?\"\n\n\"Nhớ hết,\" ông Bảy nói. \"Tàu nào đi qua đây ban đêm là tôi thấy. Thấy thì nhớ.\""),
+    mk(s2, 2, "Tàu Hải Vân 06",
+      "Con tàu đầu tiên ông kể là một tàu cá vỏ gỗ, số hiệu Hải Vân 06, vào một đêm tháng Mười một gió mùa.\n\nNó chạy sát bờ đá hơn mức an toàn, chắc vì muốn cắt đường về cho kịp con nước. Ông Bảy đã làm điều duy nhất ông có thể làm: chỉnh đèn, rồi đứng đó nhìn.\n\n\"Rồi sao chú?\" Quân hỏi, tay vẫn cầm bút.\n\n\"Rồi nó về tới,\" ông đáp, giọng bình thản. \"Không phải đêm nào cũng vậy. Nhưng đêm đó thì có.\"\n\nQuân đặt bút xuống. Bảng kiểm hai trang nằm im trên bàn suốt phần còn lại của đêm."),
+    mk(s2, 3, "Bàn giao",
+      "Đêm cuối, ông Bảy leo một trăm hai mươi bậc chậm hơn thường lệ. Không phải vì mệt, mà vì đếm.\n\nBộ đèn mới đã lắp xong từ chiều, sáng đều và lạnh, không cần ai lau bóng. Quân đứng cạnh, im lặng rất lâu, rồi hỏi ông có muốn bật cữ đầu tiên không.\n\nÔng Bảy lắc đầu. \"Để nó tự bật. Từ nay là việc của nó.\"\n\nHai người xuống thang lúc gần sáng. Phía sau lưng, ánh đèn vẫn quay đúng mười hai giây một vòng, không sai một nhịp nào, và sẽ còn quay như vậy rất lâu sau khi không còn ai nhớ tên người từng leo lên đó mỗi đêm.")
+  ];
+
+  await DB.bulkPut("stories", [s1, s2]);
+  await DB.bulkPut("chapters", chapters);
+}
+
+/* ---------------------------------------------------------------------
+ * 4. Định tuyến SPA bằng hash
+ * ------------------------------------------------------------------ */
+const view = $("#view");
+
+function go(hash) {
+  if (location.hash === hash) render();
+  else location.hash = hash;
+}
+
+function parseRoute() {
+  const raw = (location.hash || "#/").slice(1);
+  const parts = raw.split("/").filter(Boolean);
+  if (parts.length === 0) return { name: "home" };
+  if (parts[0] === "library") return { name: "library" };
+  if (parts[0] === "favorites") return { name: "favorites" };
+  if (parts[0] === "history") return { name: "history" };
+  if (parts[0] === "admin") return { name: "admin" };
+  if (parts[0] === "story") return { name: "detail", storyId: decodeURIComponent(parts[1] || "") };
+  if (parts[0] === "read") {
+    return { name: "reader", storyId: decodeURIComponent(parts[1] || ""), chapterId: decodeURIComponent(parts[2] || "") };
+  }
+  return { name: "home" };
+}
+
+let currentRoute = { name: "home" };
+
+/** Vẽ lại view tương ứng với hash hiện tại. */
+async function render() {
+  const route = parseRoute();
+  currentRoute = route;
+  detachReader();
+  document.body.removeAttribute("data-rt");
+  document.body.classList.toggle("focus-mode", route.name === "reader" && !!settings.focus);
+  $$("#bottomNav button").forEach((b) => {
+    const map = { home: "home", library: "library", favorites: "favorites", history: "history", admin: "admin" };
+    b.setAttribute("aria-current", String(map[route.name] === b.dataset.key));
+  });
+
+  try {
+    switch (route.name) {
+      case "home": await renderHome(); break;
+      case "library": await renderLibrary(); break;
+      case "favorites": await renderFavorites(); break;
+      case "history": await renderHistoryView(); break;
+      case "detail": await renderDetail(route.storyId); break;
+      case "reader": await renderReader(route.storyId, route.chapterId); break;
+      case "admin": await renderAdmin(); break;
+      default: await renderHome();
+    }
+  } catch (err) {
+    console.error(err);
+    view.innerHTML = '<div class="wrap"><div class="empty" style="margin-top:40px"><strong>Không mở được trang này</strong>Tải lại trang để thử lại. Chi tiết lỗi nằm trong Console của trình duyệt.</div></div>';
+  }
+  if (route.name !== "reader") window.scrollTo(0, 0);
+}
+
+/* ---------------------------------------------------------------------
+ * 5. Thành phần hiển thị dùng lại
+ * ------------------------------------------------------------------ */
+function coverHTML(story, chapterCount) {
+  const badge = story.status === "completed"
+    ? '<span class="chip">Hoàn thành</span>'
+    : '<span class="chip">Đang ra</span>';
+  const inner = story.cover
+    ? `<img src="${esc(story.cover)}" alt="Bìa truyện ${esc(story.title)}" loading="lazy">`
+    : `<div class="cover-fallback">${esc(story.title)}</div>`;
+  return `<div class="cover">${inner}${badge}${typeof chapterCount === "number" ? "" : ""}</div>`;
+}
+
+function storyCardHTML(story) {
+  const genres = (story.genres || []).slice(0, 2).map((g) => esc(g)).join(" · ");
+  return `
+  <button class="story-card" data-story="${esc(story.id)}">
+    ${coverHTML(story)}
+    <h3>${esc(story.title)}</h3>
+    <div class="meta"><span>${esc(story.author || "Khuyết danh")}</span></div>
+    <div class="meta"><span>${story.chapterCount || 0} chương</span>${genres ? `<span>· ${genres}</span>` : ""}</div>
+  </button>`;
+}
+
+/** Gắn số chương cho mọi truyện (dùng cho card ở trang chủ/kho truyện). */
+async function withChapterCounts(list) {
+  const counts = await Promise.all(list.map((s) => DB._p(DB.store("chapters").index("storyId").count(s.id))));
+  list.forEach((s, i) => { s.chapterCount = counts[i]; });
+  return list;
+}
+
+function gridHTML(list, emptyMsg) {
+  if (!list.length) {
+    return `<div class="empty"><strong>Chưa có truyện nào ở đây</strong>${esc(emptyMsg)}</div>`;
+  }
+  return `<div class="grid">${list.map(storyCardHTML).join("")}</div>`;
+}
+
+/* ---------------------------------------------------------------------
+ * 6. Trang chủ & Kho truyện
+ * ------------------------------------------------------------------ */
+const filterState = { q: "", genre: "", status: "", sort: "updated" };
+
+function applyFilters(list) {
+  const q = slugify(filterState.q);
+  let out = list.filter((s) => {
+    if (filterState.status && s.status !== filterState.status) return false;
+    if (filterState.genre && !(s.genres || []).includes(filterState.genre)) return false;
+    if (q) {
+      const hay = slugify(s.title + " " + (s.author || "") + " " + (s.genres || []).join(" "));
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if (filterState.sort === "title") out.sort((a, b) => a.title.localeCompare(b.title, "vi"));
+  else if (filterState.sort === "chapters") out.sort((a, b) => (b.chapterCount || 0) - (a.chapterCount || 0));
+  else out.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  return out;
+}
+
+function allGenres() {
+  const set = new Set();
+  stories.forEach((s) => (s.genres || []).forEach((g) => set.add(g)));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "vi"));
+}
+
+function filtersHTML() {
+  const genres = allGenres();
+  return `
+  <div class="filters">
+    <select class="input" id="fGenre" style="width:auto" aria-label="Lọc theo thể loại">
+      <option value="">Mọi thể loại</option>
+      ${genres.map((g) => `<option value="${esc(g)}"${filterState.genre === g ? " selected" : ""}>${esc(g)}</option>`).join("")}
+    </select>
+    <select class="input" id="fStatus" style="width:auto" aria-label="Lọc theo trạng thái">
+      <option value="">Mọi trạng thái</option>
+      <option value="ongoing"${filterState.status === "ongoing" ? " selected" : ""}>Đang ra</option>
+      <option value="completed"${filterState.status === "completed" ? " selected" : ""}>Hoàn thành</option>
+    </select>
+    <select class="input" id="fSort" style="width:auto" aria-label="Sắp xếp">
+      <option value="updated"${filterState.sort === "updated" ? " selected" : ""}>Mới cập nhật</option>
+      <option value="title"${filterState.sort === "title" ? " selected" : ""}>Tên A → Z</option>
+      <option value="chapters"${filterState.sort === "chapters" ? " selected" : ""}>Nhiều chương nhất</option>
+    </select>
+    ${filterState.q ? `<button class="btn btn-sm" id="clearQ">Bỏ từ khóa “${esc(filterState.q)}”</button>` : ""}
+  </div>`;
+}
+
+function bindFilters() {
+  const g = $("#fGenre"), s = $("#fStatus"), so = $("#fSort"), c = $("#clearQ");
+  if (g) g.onchange = () => { filterState.genre = g.value; refreshGrid(); };
+  if (s) s.onchange = () => { filterState.status = s.value; refreshGrid(); };
+  if (so) so.onchange = () => { filterState.sort = so.value; refreshGrid(); };
+  if (c) c.onclick = () => { filterState.q = ""; $("#globalSearch").value = ""; render(); };
+}
+
+/** Vẽ lại riêng lưới truyện, giữ nguyên ô tìm kiếm đang gõ. */
+function refreshGrid() {
+  const box = $("#storyGrid");
+  if (!box) return;
+  const list = applyFilters(stories.slice());
+  box.innerHTML = gridHTML(list, "Thử bỏ bớt bộ lọc, hoặc thêm truyện mới trong khu vực Quản trị.");
+  const count = $("#resultCount");
+  if (count) count.textContent = list.length + " truyện";
+}
+
+async function renderHome() {
+  await refreshStories();
+  await withChapterCounts(stories);
+
+  const totalChapters = stories.reduce((n, s) => n + (s.chapterCount || 0), 0);
+  const last = history[0];
+  const lastStory = last ? storyById(last.storyId) : null;
+  const featured = stories.filter((s) => s.featured).slice(0, 6);
+  const completed = stories.filter((s) => s.status === "completed").slice(0, 6);
+  const recent = stories.slice(0, 12);
+
+  view.innerHTML = `
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <h1>Tủ truyện nằm gọn trong trình duyệt của bạn</h1>
+        <p>Thêm truyện, nhập file .txt, đọc và ghi nhớ vị trí — tất cả lưu ngay trên máy bạn, không cần máy chủ, không cần tài khoản.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-nav="#/library">Xem kho truyện</button>
+          <button class="btn" data-nav="#/admin">Thêm truyện mới</button>
+        </div>
+        <div class="stat-strip">
+          <div><b>${stories.length}</b><span>truyện</span></div>
+          <div><b>${totalChapters}</b><span>chương</span></div>
+          <div><b>${favorites.length}</b><span>đang theo dõi</span></div>
+        </div>
+      </div>
+      <div>
+        ${lastStory && last ? `
+        <div class="resume-card">
+          ${lastStory.cover ? `<img src="${esc(lastStory.cover)}" alt="">` : `<div class="cover-fallback" style="border-radius:8px">${esc(lastStory.title.slice(0, 12))}</div>`}
+          <div style="min-width:0">
+            <h3>${esc(lastStory.title)}</h3>
+            <p>Chương ${last.order} · ${esc(fmtRelative(last.at))}</p>
+            <button class="btn btn-primary btn-sm" data-nav="#/read/${encodeURIComponent(last.storyId)}/${encodeURIComponent(last.chapterId)}">Đọc tiếp</button>
+          </div>
+        </div>` : `
+        <div class="resume-card">
+          <div class="cover-fallback" style="border-radius:8px">書</div>
+          <div>
+            <h3>Chưa có gì đang đọc dở</h3>
+            <p>Mở một truyện bất kỳ, chỗ bạn dừng lại sẽ được ghi nhớ ở đây.</p>
+          </div>
+        </div>`}
+      </div>
+    </section>
+
+    ${featured.length ? `
+    <div class="section-head"><h2>Truyện nổi bật</h2><button class="btn btn-ghost btn-sm" data-nav="#/library">Tất cả</button></div>
+    ${gridHTML(featured, "")}` : ""}
+
+    <div class="section-head"><h2>Mới cập nhật</h2><span class="muted" style="font-size:13px">${stories.length} truyện trong kho</span></div>
+    ${gridHTML(recent, "Vào khu vực Quản trị để thêm truyện đầu tiên.")}
+
+    ${completed.length ? `
+    <div class="section-head"><h2>Đã hoàn thành</h2></div>
+    ${gridHTML(completed, "")}` : ""}
+
+    <footer class="site-footer">
+      Thư Quán · Ứng dụng đọc truyện chạy offline trên trình duyệt. Dữ liệu nằm trong IndexedDB của máy bạn.
+    </footer>
+  </div>`;
+}
+
+async function renderLibrary() {
+  await refreshStories();
+  await withChapterCounts(stories);
+  view.innerHTML = `
+  <div class="wrap">
+    <div class="section-head"><h2>Kho truyện</h2><span class="muted" id="resultCount" style="font-size:13px"></span></div>
+    ${filtersHTML()}
+    <div id="storyGrid"></div>
+  </div>`;
+  bindFilters();
+  refreshGrid();
+}
+
+async function renderFavorites() {
+  await refreshStories();
+  await withChapterCounts(stories);
+  const list = stories.filter((s) => favorites.includes(s.id));
+  view.innerHTML = `
+  <div class="wrap">
+    <div class="section-head"><h2>Truyện yêu thích</h2><span class="muted" style="font-size:13px">${list.length} truyện</span></div>
+    ${gridHTML(list, "Bấm biểu tượng trái tim ở trang truyện để thêm vào đây.")}
+  </div>`;
+}
+
+async function renderHistoryView() {
+  await refreshStories();
+  const rows = history.map((h) => {
+    const s = storyById(h.storyId);
+    if (!s) return "";
+    return `
+    <button class="chapter-row" data-nav="#/read/${encodeURIComponent(h.storyId)}/${encodeURIComponent(h.chapterId)}">
+      <span class="num">C${h.order}</span>
+      <span class="t"><b>${esc(s.title)}</b><br><span class="muted" style="font-size:12.5px">${esc(h.chapterTitle || "")} · ${esc(fmtRelative(h.at))}</span></span>
+      <svg class="icon" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"></path></svg>
+    </button>`;
+  }).join("");
+
+  view.innerHTML = `
+  <div class="wrap">
+    <div class="section-head"><h2>Lịch sử đọc</h2>${history.length ? '<button class="btn btn-sm btn-danger" id="clearHistory">Xóa lịch sử</button>' : ""}</div>
+    ${history.length ? `<div class="card" style="padding:6px 8px">${rows}</div>` : '<div class="empty"><strong>Chưa có lịch sử</strong>Khi bạn đọc một chương, vị trí sẽ được lưu lại tại đây.</div>'}
+  </div>`;
+
+  const btn = $("#clearHistory");
+  if (btn) btn.onclick = async () => {
+    const ok = await confirmDialog("Xóa toàn bộ lịch sử đọc?", "Vị trí đọc đã lưu của mọi truyện sẽ bị xóa. Truyện và chương vẫn giữ nguyên.");
+    if (!ok) return;
+    history = []; saveHistory(); render(); toast("Đã xóa lịch sử đọc");
+  };
+}
+
+/* ---------------------------------------------------------------------
+ * 7. Trang chi tiết truyện
+ * ------------------------------------------------------------------ */
+const detailState = { page: 1, perPage: 60, q: "" };
+
+async function renderDetail(storyId) {
+  if (!stories.length) await refreshStories();
+  let story = storyById(storyId);
+  if (!story) { story = await DB.get("stories", storyId); if (story) stories.push(story); }
+  if (!story) {
+    view.innerHTML = '<div class="wrap"><div class="empty" style="margin-top:40px"><strong>Không tìm thấy truyện</strong>Truyện có thể đã bị xóa. Quay lại kho truyện để chọn truyện khác.</div></div>';
+    return;
+  }
+  const chapters = await getChapters(storyId);
+  detailState.page = 1; detailState.q = "";
+  const fav = favorites.includes(story.id);
+  const hist = historyOf(story.id);
+  const first = chapters[0], last = chapters[chapters.length - 1];
+
+  view.innerHTML = `
+  <div class="wrap">
+    <button class="btn btn-ghost btn-sm" data-nav="#/library" style="margin-top:16px">
+      <svg class="icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg> Kho truyện
+    </button>
+    <div class="detail">
+      <div>${coverHTML(story)}</div>
+      <div>
+        <h1>${esc(story.title)}</h1>
+        <p class="byline">${esc(story.author || "Khuyết danh")} · cập nhật ${esc(fmtRelative(story.updatedAt || story.createdAt))}</p>
+        <div class="tag-row">
+          <span class="chip ${story.status === "completed" ? "chip-completed" : "chip-ongoing"}">${story.status === "completed" ? "Hoàn thành" : "Đang ra"}</span>
+          <span class="chip">${chapters.length} chương</span>
+          ${(story.genres || []).map((g) => `<span class="chip">${esc(g)}</span>`).join("")}
+        </div>
+        <div class="desc collapsed" id="desc">${esc(story.description || "Truyện này chưa có mô tả.").replace(/\n/g, "<br>")}</div>
+        <button class="btn btn-ghost btn-sm" id="descToggle" style="padding-left:0">Xem thêm</button>
+
+        <div class="detail-actions">
+          ${first ? `<button class="btn btn-primary" data-nav="#/read/${encodeURIComponent(story.id)}/${encodeURIComponent(first.id)}">Đọc từ đầu</button>` : ""}
+          ${last && chapters.length > 1 ? `<button class="btn" data-nav="#/read/${encodeURIComponent(story.id)}/${encodeURIComponent(last.id)}">Đọc chương mới nhất</button>` : ""}
+          ${hist ? `<button class="btn" data-nav="#/read/${encodeURIComponent(story.id)}/${encodeURIComponent(hist.chapterId)}">Đọc tiếp chương ${hist.order}</button>` : ""}
+          <button class="btn ${fav ? "btn-primary" : ""}" id="favBtn" data-fav="${esc(story.id)}">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 20s-7-4.35-7-9a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 4.65-7 9-7 9Z"></path></svg>
+            ${fav ? "Đang theo dõi" : "Thêm vào yêu thích"}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head"><h2>Danh sách chương</h2><span class="muted" style="font-size:13px" id="chapCount">${chapters.length} chương</span></div>
+    <div class="chapter-tools">
+      <input class="input" id="chapSearch" style="max-width:280px" type="search" placeholder="Tìm chương theo tên hoặc số" autocomplete="off">
+      <button class="btn btn-sm" id="chapOrder" data-dir="asc">Thứ tự: cũ → mới</button>
+    </div>
+    <div class="card" style="padding:4px 8px"><div class="chapter-list" id="chapterList"></div></div>
+    <div id="chapPager"></div>
+    <footer class="site-footer">Mẹo: bật chế độ đọc tập trung trong trang đọc để ẩn mọi thanh công cụ.</footer>
+  </div>`;
+
+  // Nút xem thêm / thu gọn mô tả
+  const desc = $("#desc"), toggle = $("#descToggle");
+  toggle.onclick = () => {
+    const collapsed = desc.classList.toggle("collapsed");
+    toggle.textContent = collapsed ? "Xem thêm" : "Thu gọn";
+  };
+
+  let dir = "asc";
+  const drawChapters = () => {
+    const q = slugify(detailState.q);
+    let list = chapters.filter((c) => !q || slugify("chương " + c.order + " " + c.title).includes(q));
+    if (dir === "desc") list = list.slice().reverse();
+    const pages = Math.max(1, Math.ceil(list.length / detailState.perPage));
+    if (detailState.page > pages) detailState.page = pages;
+    const start = (detailState.page - 1) * detailState.perPage;
+    const page = list.slice(start, start + detailState.perPage);
+    const readId = hist ? hist.chapterId : null;
+
+    $("#chapterList").innerHTML = page.length ? page.map((c) => `
+      <button class="chapter-row" data-nav="#/read/${encodeURIComponent(story.id)}/${encodeURIComponent(c.id)}">
+        <span class="num">Ch. ${c.order}</span>
+        <span class="t">${esc(c.title || "Không tên")}</span>
+        ${c.id === readId ? '<span class="read-dot" title="Đang đọc dở"></span>' : ""}
+      </button>`).join("") : '<div class="empty" style="border:0">Không có chương nào khớp từ khóa.</div>';
+
+    $("#chapCount").textContent = list.length + " chương";
+    $("#chapPager").innerHTML = pages > 1 ? `
+      <div class="pager">
+        <button class="btn btn-sm" data-page="${detailState.page - 1}" ${detailState.page === 1 ? "disabled" : ""}>Trước</button>
+        <span class="muted">Trang ${detailState.page}/${pages}</span>
+        <button class="btn btn-sm" data-page="${detailState.page + 1}" ${detailState.page === pages ? "disabled" : ""}>Sau</button>
+      </div>` : "";
+
+    $$("#chapPager [data-page]").forEach((b) => {
+      b.onclick = () => { detailState.page = Number(b.dataset.page); drawChapters(); };
+    });
+  };
+
+  $("#chapSearch").addEventListener("input", debounce((e) => {
+    detailState.q = e.target.value; detailState.page = 1; drawChapters();
+  }, 180));
+  $("#chapOrder").onclick = (e) => {
+    dir = dir === "asc" ? "desc" : "asc";
+    e.currentTarget.textContent = dir === "asc" ? "Thứ tự: cũ → mới" : "Thứ tự: mới → cũ";
+    detailState.page = 1; drawChapters();
+  };
+  drawChapters();
+}
+
+/* ---------------------------------------------------------------------
+ * 8. Trang đọc truyện
+ * ------------------------------------------------------------------ */
+const readerState = { story: null, chapters: [], index: -1, onScroll: null, onDocClick: null, restored: false };
+
+function detachReader() {
+  if (readerState.onScroll) {
+    window.removeEventListener("scroll", readerState.onScroll);
+    readerState.onScroll = null;
+  }
+  if (readerState.onDocClick) {
+    document.removeEventListener("click", readerState.onDocClick);
+    readerState.onDocClick = null;
+  }
+  readerState.story = null;
+  readerState.chapters = [];
+  readerState.index = -1;
+}
+
+/** Chuyển văn bản thô thành các thẻ <p>, giữ khoảng cách đoạn. */
+function paragraphsHTML(text) {
+  const parts = String(text || "").split(/\n\s*\n|\n/).map((s) => s.trim()).filter(Boolean);
+  if (!parts.length) return "<p>Chương này chưa có nội dung.</p>";
+  return parts.map((p) => `<p>${esc(p)}</p>`).join("");
+}
+
+async function renderReader(storyId, chapterId) {
+  if (!stories.length) await refreshStories();
+  let story = storyById(storyId) || await DB.get("stories", storyId);
+  if (!story) {
+    view.innerHTML = '<div class="wrap"><div class="empty" style="margin-top:40px"><strong>Không tìm thấy truyện</strong>Quay lại kho truyện để chọn truyện khác.</div></div>';
+    return;
+  }
+  const chapters = await getChapters(storyId);
+  if (!chapters.length) {
+    view.innerHTML = `<div class="wrap"><div class="empty" style="margin-top:40px"><strong>Truyện chưa có chương nào</strong>Thêm chương trong khu vực Quản trị, hoặc nhập nhanh bằng file .txt.</div></div>`;
+    return;
+  }
+  let index = chapters.findIndex((c) => c.id === chapterId);
+  if (index < 0) index = 0;
+  const chapter = chapters[index];
+
+  readerState.story = story;
+  readerState.chapters = chapters;
+  readerState.index = index;
+  readerState.restored = false;
+
+  document.body.dataset.rt = settings.readerTheme;
+  document.body.classList.toggle("focus-mode", !!settings.focus);
+
+  view.innerHTML = `
+  <div class="reader-toolbar">
+    <div class="toolbar-inner" style="position:relative">
+      <button class="btn btn-ghost btn-icon" data-nav="#/story/${encodeURIComponent(story.id)}" title="Về trang truyện" aria-label="Về trang truyện">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg>
+      </button>
+      <select id="chapPick" aria-label="Chọn chương">
+        ${chapters.map((c, i) => `<option value="${esc(c.id)}"${i === index ? " selected" : ""}>Ch. ${c.order} — ${esc(c.title || "Không tên")}</option>`).join("")}
+      </select>
+      <button class="btn btn-ghost btn-icon" id="prevBtn" title="Chương trước" aria-label="Chương trước" ${index === 0 ? "disabled" : ""}>
+        <svg class="icon" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="nextBtn" title="Chương sau" aria-label="Chương sau" ${index === chapters.length - 1 ? "disabled" : ""}>
+        <svg class="icon" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"></path></svg>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="settingsBtn" title="Tùy chỉnh hiển thị" aria-label="Tùy chỉnh hiển thị" style="margin-left:auto">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"></path></svg>
+      </button>
+      <div class="settings-pop hidden" id="settingsPop"></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+  </div>
+
+  <div class="reader-surface" data-rt="${esc(settings.readerTheme)}" id="readerSurface">
+    <article class="reader-inner">
+      <h1 class="ch-title">Chương ${chapter.order}${chapter.title ? " — " + esc(chapter.title) : ""}</h1>
+      <p class="ch-sub">${esc(story.title)} · ${esc(story.author || "Khuyết danh")}</p>
+      <div class="reader-body" id="readerBody">${paragraphsHTML(chapter.content)}</div>
+      <nav class="reader-nav">
+        <button class="btn" id="prevBtn2" ${index === 0 ? "disabled" : ""}>← Chương trước</button>
+        <button class="btn btn-primary" id="nextBtn2" ${index === chapters.length - 1 ? "disabled" : ""}>Chương sau →</button>
+      </nav>
+    </article>
+  </div>`;
+
+  const goTo = (i) => {
+    if (i < 0 || i >= chapters.length) return;
+    go(`#/read/${encodeURIComponent(story.id)}/${encodeURIComponent(chapters[i].id)}`);
+  };
+  $("#prevBtn").onclick = () => goTo(index - 1);
+  $("#nextBtn").onclick = () => goTo(index + 1);
+  $("#prevBtn2").onclick = () => goTo(index - 1);
+  $("#nextBtn2").onclick = () => goTo(index + 1);
+  $("#chapPick").onchange = (e) => go(`#/read/${encodeURIComponent(story.id)}/${encodeURIComponent(e.target.value)}`);
+
+  buildSettingsPanel();
+
+  // Thanh tiến trình + tự lưu vị trí cuộn
+  const progress = $("#progress");
+  const saveScroll = throttle(() => trackHistory(story, chapter, window.scrollY), 700);
+  const onScroll = () => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = max > 0 ? Math.min(100, Math.max(0, (window.scrollY / max) * 100)) : 100;
+    progress.style.width = pct.toFixed(2) + "%";
+    if (readerState.restored) saveScroll();
+  };
+  readerState.onScroll = onScroll;
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  // Khôi phục vị trí cũ nếu quay lại đúng chương đang đọc dở
+  const hist = historyOf(story.id);
+  const targetScroll = hist && hist.chapterId === chapter.id ? hist.scroll : 0;
+  requestAnimationFrame(() => {
+    window.scrollTo(0, targetScroll || 0);
+    readerState.restored = true;
+    onScroll();
+    trackHistory(story, chapter, targetScroll || 0);
+  });
+}
+
+/** Bảng tùy chỉnh cỡ chữ, phông, chiều rộng, nền và chế độ tập trung. */
+function buildSettingsPanel() {
+  const pop = $("#settingsPop");
+  if (!pop) return;
+  const seg = (name, opts, current) => opts.map((o) =>
+    `<button data-set="${name}" data-value="${o.v}" aria-pressed="${String(current === o.v)}">${o.l}</button>`).join("");
+
+  pop.innerHTML = `
+    <h4>Cỡ chữ</h4>
+    <div class="seg">
+      <button data-font="-">A −</button>
+      <button data-font="0" style="flex:0 0 64px" id="fontVal">${settings.fontSize}px</button>
+      <button data-font="+">A +</button>
+    </div>
+    <h4>Phông chữ</h4>
+    <div class="seg">${seg("fontFamily", [{ v: "serif", l: "Có chân" }, { v: "sans", l: "Không chân" }], settings.fontFamily)}</div>
+    <h4>Chiều rộng khung đọc</h4>
+    <div class="seg">${seg("width", [{ v: "narrow", l: "Hẹp" }, { v: "medium", l: "Vừa" }, { v: "full", l: "Rộng" }], settings.width)}</div>
+    <h4>Nền trang đọc</h4>
+    <div class="seg">${seg("readerTheme", [{ v: "light", l: "Sáng" }, { v: "sepia", l: "Giấy ngà" }, { v: "dark", l: "Tối" }], settings.readerTheme)}</div>
+    <h4>Chế độ đọc</h4>
+    <div class="seg">
+      <button data-focus="1" aria-pressed="${String(!!settings.focus)}">Tập trung ${settings.focus ? "đang bật" : "đang tắt"}</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin:0">Chế độ tập trung ẩn thanh công cụ; đưa chuột lên mép trên (hoặc nhấn phím Esc) để hiện lại.</p>`;
+
+  const btn = $("#settingsBtn");
+  btn.onclick = (e) => { e.stopPropagation(); pop.classList.toggle("hidden"); };
+  // Bấm ra ngoài thì đóng bảng; listener được gỡ khi rời trang đọc (detachReader)
+  readerState.onDocClick = (e) => {
+    if (!pop.isConnected) return;
+    if (!pop.classList.contains("hidden") && !pop.contains(e.target) && !btn.contains(e.target)) pop.classList.add("hidden");
+  };
+  document.addEventListener("click", readerState.onDocClick);
+
+  pop.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.font) {
+      if (b.dataset.font === "+") settings.fontSize = Math.min(32, settings.fontSize + 1);
+      else if (b.dataset.font === "-") settings.fontSize = Math.max(14, settings.fontSize - 1);
+      $("#fontVal").textContent = settings.fontSize + "px";
+    } else if (b.dataset.set) {
+      settings[b.dataset.set] = b.dataset.value;
+      if (b.dataset.set === "readerTheme") {
+        document.body.dataset.rt = settings.readerTheme;
+        const surf = $("#readerSurface");
+        if (surf) surf.dataset.rt = settings.readerTheme;
+      }
+      $$(`[data-set="${b.dataset.set}"]`, pop).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    } else if (b.dataset.focus) {
+      settings.focus = !settings.focus;
+      document.body.classList.toggle("focus-mode", settings.focus);
+      b.setAttribute("aria-pressed", String(settings.focus));
+      b.textContent = "Tập trung " + (settings.focus ? "đang bật" : "đang tắt");
+    } else return;
+    saveSettings();
+    applySettings();
+  });
+}
+
+/* ---------------------------------------------------------------------
+ * 9. Hộp thoại dùng chung
+ * ------------------------------------------------------------------ */
+function openModal(html, onMount) {
+  const root = $("#modalRoot");
+  root.innerHTML = `<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  const backdrop = $(".modal-backdrop", root);
+  backdrop.addEventListener("mousedown", (e) => { if (e.target === backdrop) closeModal(); });
+  if (onMount) onMount(root);
+  const firstInput = $("input,textarea,select,button", root);
+  if (firstInput) firstInput.focus();
+  return root;
+}
+function closeModal() { $("#modalRoot").innerHTML = ""; }
+
+function confirmDialog(title, message, confirmLabel = "Xóa") {
+  return new Promise((resolve) => {
+    openModal(`
+      <h3>${esc(title)}</h3>
+      <p class="muted" style="margin-top:0">${esc(message)}</p>
+      <div class="modal-actions">
+        <button class="btn" id="cfNo">Hủy</button>
+        <button class="btn btn-primary" id="cfYes">${esc(confirmLabel)}</button>
+      </div>`, (root) => {
+      $("#cfNo", root).onclick = () => { closeModal(); resolve(false); };
+      $("#cfYes", root).onclick = () => { closeModal(); resolve(true); };
+    });
+  });
+}
+
+/* ---------------------------------------------------------------------
+ * 10. Ảnh bìa: nén về base64 kích thước nhỏ
+ * ------------------------------------------------------------------ */
+function compressImage(file, maxWidth = 480, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("Không đọc được ảnh"));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("Không đọc được tệp"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------------------------------------------------------------------
+ * 11. Khu vực quản trị
+ * ------------------------------------------------------------------ */
+let adminTab = "stories";
+let adminStoryId = null;   // truyện đang mở trong trình quản lý chương
+
+async function renderAdmin() {
+  if (!isAdmin()) return renderLogin();
+  await refreshStories();
+  await withChapterCounts(stories);
+
+  view.innerHTML = `
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Khu vực quản trị</h2>
+      <button class="btn btn-sm" id="logoutBtn">Đăng xuất</button>
+    </div>
+    <div class="notice">
+      Do hệ thống chạy Client-side HTML thuần, cơ chế xác thực Admin lưu ở LocalStorage chỉ dùng để phân quyền giao diện,
+      không thay thế cho hệ thống backend bảo mật thực tế.
+    </div>
+    <div id="adminStats" class="admin-grid"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="stories" aria-selected="${adminTab === "stories"}">Quản lý truyện</button>
+      <button role="tab" data-tab="chapters" aria-selected="${adminTab === "chapters"}">Quản lý chương</button>
+      <button role="tab" data-tab="import" aria-selected="${adminTab === "import"}">Nhập từ file .txt</button>
+      <button role="tab" data-tab="backup" aria-selected="${adminTab === "backup"}">Sao lưu &amp; phục hồi</button>
+    </div>
+    <div id="adminPanel"></div>
+  </div>`;
+
+  $("#logoutBtn").onclick = () => {
+    auth = { user: null }; writeJSON(LS.auth, auth);
+    toast("Đã đăng xuất"); render();
+  };
+  $$(".tabs [data-tab]").forEach((b) => {
+    b.onclick = () => { adminTab = b.dataset.tab; render(); };
+  });
+
+  drawAdminStats();
+  if (adminTab === "stories") panelStories();
+  else if (adminTab === "chapters") panelChapters();
+  else if (adminTab === "import") panelImport();
+  else panelBackup();
+}
+
+function renderLogin() {
+  view.innerHTML = `
+  <div class="wrap" style="max-width:440px">
+    <div class="card" style="padding:26px;margin-top:40px">
+      <h2 style="font-family:Literata,serif;margin:0 0 6px;font-size:22px">Đăng nhập quản trị</h2>
+      <p class="muted" style="margin-top:0;font-size:14px">Tài khoản mặc định: <b>admin</b> / <b>admin123</b></p>
+      <div class="field"><label for="u">Tên đăng nhập</label><input class="input" id="u" autocomplete="username"></div>
+      <div class="field"><label for="p">Mật khẩu</label><input class="input" id="p" type="password" autocomplete="current-password"></div>
+      <div id="loginErr" class="muted" style="color:var(--warn);font-size:13.5px;min-height:20px"></div>
+      <button class="btn btn-primary" id="loginBtn" style="width:100%">Đăng nhập</button>
+      <div class="notice" style="margin-bottom:0">
+        Do hệ thống chạy Client-side HTML thuần, cơ chế xác thực Admin lưu ở LocalStorage chỉ dùng để phân quyền giao diện,
+        không thay thế cho hệ thống backend bảo mật thực tế.
+      </div>
+    </div>
+  </div>`;
+
+  const submit = () => {
+    const u = $("#u").value.trim(), p = $("#p").value;
+    if (u === ADMIN_ACCOUNT.username && p === ADMIN_ACCOUNT.password) {
+      auth = { user: u, at: Date.now() };
+      writeJSON(LS.auth, auth);
+      toast("Đã đăng nhập với quyền quản trị");
+      render();
+    } else {
+      $("#loginErr").textContent = "Sai tên đăng nhập hoặc mật khẩu.";
+    }
+  };
+  $("#loginBtn").onclick = submit;
+  $("#p").onkeydown = (e) => { if (e.key === "Enter") submit(); };
+  $("#u").onkeydown = (e) => { if (e.key === "Enter") $("#p").focus(); };
+}
+
+/** Thống kê: số truyện, số chương, dung lượng lưu trữ đã dùng. */
+async function drawAdminStats() {
+  const box = $("#adminStats");
+  if (!box) return;
+  const totalChapters = await DB._p(DB.store("chapters").count());
+  let usage = "—", quota = "";
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      usage = fmtBytes(est.usage || 0);
+      if (est.quota) quota = "trên " + fmtBytes(est.quota);
+    } catch (err) { console.warn("Không lấy được dung lượng:", err); }
+  }
+  box.innerHTML = `
+    <div class="stat-card"><b>${stories.length}</b><span>truyện trong kho</span></div>
+    <div class="stat-card"><b>${totalChapters}</b><span>chương đã lưu</span></div>
+    <div class="stat-card"><b>${usage}</b><span>dung lượng đã dùng ${esc(quota)}</span></div>
+    <div class="stat-card"><b>${favorites.length}</b><span>truyện được theo dõi</span></div>`;
+}
+
+/* --------- 11.1 Quản lý truyện --------- */
+function panelStories() {
+  const panel = $("#adminPanel");
+  panel.innerHTML = `
+    <div class="chapter-tools">
+      <button class="btn btn-primary btn-sm" id="addStory">Thêm truyện</button>
+      <input class="input" id="admSearch" style="max-width:260px" type="search" placeholder="Lọc theo tên truyện">
+    </div>
+    <div class="table-scroll card" style="padding:4px 10px">
+      <table class="table"><thead><tr>
+        <th style="width:52px">Bìa</th><th>Tên truyện</th><th>Tác giả</th><th>Chương</th><th>Trạng thái</th><th>Nổi bật</th><th>Cập nhật</th><th></th>
+      </tr></thead><tbody id="storyRows"></tbody></table>
+    </div>`;
+
+  const draw = (q = "") => {
+    const key = slugify(q);
+    const list = stories.filter((s) => !key || slugify(s.title + " " + (s.author || "")).includes(key));
+    $("#storyRows").innerHTML = list.length ? list.map((s) => `
+      <tr>
+        <td>${s.cover ? `<img src="${esc(s.cover)}" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:6px">` : '<div style="width:40px;height:56px;border-radius:6px;background:var(--surface-2)"></div>'}</td>
+        <td><b>${esc(s.title)}</b></td>
+        <td>${esc(s.author || "—")}</td>
+        <td>${s.chapterCount || 0}</td>
+        <td>${s.status === "completed" ? "Hoàn thành" : "Đang ra"}</td>
+        <td>${s.featured ? "Có" : "Không"}</td>
+        <td class="muted">${esc(fmtDate(s.updatedAt))}</td>
+        <td><div class="row-actions">
+          <button class="btn btn-sm" data-edit="${esc(s.id)}">Sửa</button>
+          <button class="btn btn-sm" data-chapters="${esc(s.id)}">Chương</button>
+          <button class="btn btn-sm btn-danger" data-del="${esc(s.id)}">Xóa</button>
+        </div></td>
+      </tr>`).join("") : '<tr><td colspan="8" class="muted" style="padding:22px 10px">Chưa có truyện nào khớp. Bấm “Thêm truyện” để tạo mới.</td></tr>';
+
+    $$("#storyRows [data-edit]").forEach((b) => b.onclick = () => storyForm(storyById(b.dataset.edit)));
+    $$("#storyRows [data-chapters]").forEach((b) => b.onclick = () => { adminStoryId = b.dataset.chapters; adminTab = "chapters"; render(); });
+    $$("#storyRows [data-del]").forEach((b) => b.onclick = async () => {
+      const s = storyById(b.dataset.del);
+      const ok = await confirmDialog("Xóa truyện “" + s.title + "”?", "Toàn bộ chương của truyện này sẽ bị xóa khỏi IndexedDB và không khôi phục được, trừ khi bạn đã có file sao lưu.");
+      if (!ok) return;
+      await DB.deleteStoryCascade(s.id);
+      invalidate(s.id);
+      favorites = favorites.filter((id) => id !== s.id); saveFavorites();
+      history = history.filter((h) => h.storyId !== s.id); saveHistory();
+      toast("Đã xóa truyện");
+      render();
+    });
+  };
+
+  $("#addStory").onclick = () => storyForm(null);
+  $("#admSearch").addEventListener("input", debounce((e) => draw(e.target.value), 180));
+  draw();
+}
+
+/** Form thêm/sửa truyện, dùng chung cho cả hai thao tác. */
+function storyForm(story) {
+  const isNew = !story;
+  const s = story || { id: uid("st"), title: "", author: "", description: "", genres: [], status: "ongoing", cover: "", featured: false };
+  let cover = s.cover || "";
+
+  openModal(`
+    <h3>${isNew ? "Thêm truyện mới" : "Sửa thông tin truyện"}</h3>
+    <div class="field"><label for="sfTitle">Tên truyện</label><input class="input" id="sfTitle" value="${esc(s.title)}"></div>
+    <div class="field"><label for="sfAuthor">Tác giả</label><input class="input" id="sfAuthor" value="${esc(s.author)}"></div>
+    <div class="field"><label for="sfGenres">Thể loại (cách nhau bằng dấu phẩy)</label><input class="input" id="sfGenres" value="${esc((s.genres || []).join(", "))}"></div>
+    <div class="field"><label for="sfStatus">Trạng thái</label>
+      <select class="input" id="sfStatus">
+        <option value="ongoing"${s.status === "ongoing" ? " selected" : ""}>Đang ra</option>
+        <option value="completed"${s.status === "completed" ? " selected" : ""}>Hoàn thành</option>
+      </select>
+    </div>
+    <div class="field"><label for="sfDesc">Mô tả</label><textarea class="input" id="sfDesc" rows="4">${esc(s.description)}</textarea></div>
+    <div class="field"><label for="sfCoverUrl">Ảnh bìa từ đường dẫn</label><input class="input" id="sfCoverUrl" placeholder="https://..." value="${esc(cover.startsWith("data:") ? "" : cover)}"></div>
+    <div class="field"><label for="sfCoverFile">Hoặc tải ảnh từ máy (tự nén về base64)</label><input class="input" id="sfCoverFile" type="file" accept="image/*"></div>
+    <div class="field"><label><input type="checkbox" id="sfFeatured"${s.featured ? " checked" : ""}> Hiển thị ở mục “Truyện nổi bật”</label></div>
+    <div id="sfPreview" style="margin-bottom:14px">${cover ? `<img src="${esc(cover)}" alt="" style="width:76px;border-radius:8px">` : ""}</div>
+    <div class="modal-actions">
+      <button class="btn" id="sfCancel">Hủy</button>
+      <button class="btn btn-primary" id="sfSave">${isNew ? "Tạo truyện" : "Lưu thay đổi"}</button>
+    </div>`, (root) => {
+
+    $("#sfCoverFile", root).onchange = async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try {
+        cover = await compressImage(f);
+        $("#sfPreview", root).innerHTML = `<img src="${cover}" alt="" style="width:76px;border-radius:8px">`;
+        toast("Đã nạp ảnh bìa");
+      } catch (err) { console.error(err); toast("Không đọc được ảnh này"); }
+    };
+    $("#sfCoverUrl", root).oninput = (e) => {
+      const v = e.target.value.trim();
+      if (v) { cover = v; $("#sfPreview", root).innerHTML = `<img src="${esc(v)}" alt="" style="width:76px;border-radius:8px">`; }
+    };
+    $("#sfCancel", root).onclick = closeModal;
+    $("#sfSave", root).onclick = async () => {
+      const title = $("#sfTitle", root).value.trim();
+      if (!title) { toast("Nhập tên truyện trước khi lưu"); return; }
+      const now = Date.now();
+      const rec = {
+        id: s.id, title,
+        author: $("#sfAuthor", root).value.trim(),
+        description: $("#sfDesc", root).value.trim(),
+        genres: $("#sfGenres", root).value.split(",").map((x) => x.trim()).filter(Boolean),
+        status: $("#sfStatus", root).value,
+        featured: $("#sfFeatured", root).checked,
+        cover,
+        createdAt: s.createdAt || now,
+        updatedAt: now
+      };
+      await DB.put("stories", rec);
+      closeModal();
+      toast(isNew ? "Đã tạo truyện" : "Đã lưu thay đổi");
+      render();
+    };
+  });
+}
+
+/* --------- 11.2 Quản lý chương --------- */
+async function panelChapters() {
+  const panel = $("#adminPanel");
+  if (!stories.length) {
+    panel.innerHTML = '<div class="empty"><strong>Chưa có truyện nào</strong>Tạo truyện ở thẻ “Quản lý truyện” trước, rồi quay lại đây để thêm chương.</div>';
+    return;
+  }
+  if (!adminStoryId || !storyById(adminStoryId)) adminStoryId = stories[0].id;
+
+  panel.innerHTML = `
+    <div class="chapter-tools">
+      <select class="input" id="chStory" style="max-width:320px">
+        ${stories.map((s) => `<option value="${esc(s.id)}"${s.id === adminStoryId ? " selected" : ""}>${esc(s.title)}</option>`).join("")}
+      </select>
+      <button class="btn btn-primary btn-sm" id="addChapter">Thêm chương</button>
+      <button class="btn btn-sm" id="renumber">Đánh số lại từ 1</button>
+    </div>
+    <div class="table-scroll card" style="padding:4px 10px">
+      <table class="table"><thead><tr>
+        <th style="width:70px">Số</th><th>Tên chương</th><th style="width:110px">Độ dài</th><th style="width:220px">Thao tác</th>
+      </tr></thead><tbody id="chapRows"></tbody></table>
+    </div>`;
+
+  const drawRows = async () => {
+    const list = await getChapters(adminStoryId, true);
+    $("#chapRows").innerHTML = list.length ? list.map((c, i) => `
+      <tr>
+        <td>${c.order}</td>
+        <td>${esc(c.title || "Không tên")}</td>
+        <td class="muted">${(c.content || "").length.toLocaleString("vi-VN")} ký tự</td>
+        <td><div class="row-actions">
+          <button class="btn btn-sm" data-up="${esc(c.id)}" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="btn btn-sm" data-down="${esc(c.id)}" ${i === list.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn btn-sm" data-edit="${esc(c.id)}">Sửa</button>
+          <button class="btn btn-sm btn-danger" data-del="${esc(c.id)}">Xóa</button>
+        </div></td>
+      </tr>`).join("") : '<tr><td colspan="4" class="muted" style="padding:22px 10px">Truyện này chưa có chương. Bấm “Thêm chương” hoặc dùng thẻ nhập file .txt.</td></tr>';
+
+    $$("#chapRows [data-edit]").forEach((b) => b.onclick = async () => {
+      const c = (await getChapters(adminStoryId)).find((x) => x.id === b.dataset.edit);
+      chapterForm(adminStoryId, c, drawRows);
+    });
+    $$("#chapRows [data-del]").forEach((b) => b.onclick = async () => {
+      const ok = await confirmDialog("Xóa chương này?", "Nội dung chương sẽ bị xóa khỏi IndexedDB.");
+      if (!ok) return;
+      await DB.del("chapters", b.dataset.del);
+      invalidate(adminStoryId);
+      await touchStory(adminStoryId);
+      await drawRows(); drawAdminStats();
+      toast("Đã xóa chương");
+    });
+
+    // Đổi chỗ hai chương liền kề bằng cách hoán đổi số thứ tự
+    const swap = async (id, dir) => {
+      const arr = await getChapters(adminStoryId);
+      const i = arr.findIndex((x) => x.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= arr.length) return;
+      const a = arr[i], b2 = arr[j];
+      const tmp = a.order; a.order = b2.order; b2.order = tmp;
+      await DB.bulkPut("chapters", [a, b2]);
+      invalidate(adminStoryId);
+      await drawRows();
+    };
+    $$("#chapRows [data-up]").forEach((b) => b.onclick = () => swap(b.dataset.up, -1));
+    $$("#chapRows [data-down]").forEach((b) => b.onclick = () => swap(b.dataset.down, 1));
+  };
+
+  $("#chStory").onchange = (e) => { adminStoryId = e.target.value; panelChapters(); };
+  $("#addChapter").onclick = async () => {
+    const list = await getChapters(adminStoryId);
+    const nextOrder = list.length ? Math.max(...list.map((c) => c.order)) + 1 : 1;
+    chapterForm(adminStoryId, { id: uid("ch"), storyId: adminStoryId, order: nextOrder, title: "", content: "" }, drawRows, true);
+  };
+  $("#renumber").onclick = async () => {
+    const list = await getChapters(adminStoryId, true);
+    list.forEach((c, i) => { c.order = i + 1; });
+    await DB.bulkPut("chapters", list);
+    invalidate(adminStoryId);
+    await drawRows();
+    toast("Đã đánh số lại các chương");
+  };
+
+  await drawRows();
+}
+
+/** Cập nhật mốc thời gian của truyện khi chương thay đổi. */
+async function touchStory(storyId) {
+  const s = await DB.get("stories", storyId);
+  if (!s) return;
+  s.updatedAt = Date.now();
+  await DB.put("stories", s);
+  const cached = storyById(storyId);
+  if (cached) cached.updatedAt = s.updatedAt;
+}
+
+function chapterForm(storyId, chapter, after, isNew = false) {
+  openModal(`
+    <h3>${isNew ? "Thêm chương" : "Sửa chương"}</h3>
+    <div class="two-col">
+      <div class="field"><label for="cfOrder">Số chương</label><input class="input" id="cfOrder" type="number" min="1" value="${chapter.order}"></div>
+      <div class="field"><label for="cfTitle">Tên chương</label><input class="input" id="cfTitle" value="${esc(chapter.title || "")}"></div>
+    </div>
+    <div class="field"><label for="cfContent">Nội dung</label><textarea class="input" id="cfContent" rows="14" placeholder="Dán nội dung chương vào đây. Mỗi dòng trống sẽ tạo một đoạn mới.">${esc(chapter.content || "")}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn" id="cfCancel">Hủy</button>
+      <button class="btn btn-primary" id="cfSave">Lưu chương</button>
+    </div>`, (root) => {
+    $("#cfCancel", root).onclick = closeModal;
+    $("#cfSave", root).onclick = async () => {
+      const rec = {
+        id: chapter.id, storyId,
+        order: Math.max(1, Number($("#cfOrder", root).value) || 1),
+        title: $("#cfTitle", root).value.trim(),
+        content: $("#cfContent", root).value,
+        createdAt: chapter.createdAt || Date.now(),
+        updatedAt: Date.now()
+      };
+      await DB.put("chapters", rec);
+      invalidate(storyId);
+      await touchStory(storyId);
+      closeModal();
+      toast("Đã lưu chương");
+      if (after) await after();
+      drawAdminStats();
+    };
+  });
+}
+
+/* --------- 11.3 Nhập truyện từ file .txt --------- */
+const DEFAULT_PATTERN = "^\\s*(?:Chương|Chuong|Chapter|Tập|Tap|Bài|Bai|Quyển|Quyen|Hồi)\\s*([0-9]+|[IVXLCDM]+)\\s*[:.\\-–—)]?\\s*(.*)$";
+let txtState = { raw: "", chapters: [], fileName: "", cover: "" };
+
+function panelImport() {
+  const panel = $("#adminPanel");
+  panel.innerHTML = `
+    <div class="two-col">
+      <div>
+        <div class="field"><label for="txtFile">1. Chọn file .txt từ máy</label><input class="input" id="txtFile" type="file" accept=".txt,text/plain"></div>
+        <div class="field"><label for="txtPattern">2. Biểu thức nhận diện đầu chương (Regex, không phân biệt hoa thường)</label>
+          <textarea class="input" id="txtPattern" rows="3">${esc(DEFAULT_PATTERN)}</textarea>
+        </div>
+        <div class="chapter-tools" style="margin-top:0">
+          <button class="btn btn-sm" id="resetPattern">Khôi phục mẫu mặc định</button>
+          <button class="btn btn-primary btn-sm" id="parseBtn" disabled>3. Phân tích chương</button>
+        </div>
+        <div class="bar"><i id="parseBar"></i></div>
+        <p class="muted" id="fileInfo" style="font-size:13px">Mẫu mặc định nhận ra: Chương 1, Chương 2:, Chapter 3 -, Tập 4, Bài 5, Quyển 6, Hồi 7…</p>
+      </div>
+      <div>
+        <div class="field"><label for="imTitle">Tên truyện</label><input class="input" id="imTitle"></div>
+        <div class="field"><label for="imAuthor">Tác giả</label><input class="input" id="imAuthor"></div>
+        <div class="field"><label for="imGenres">Thể loại (cách nhau bằng dấu phẩy)</label><input class="input" id="imGenres"></div>
+        <div class="field"><label for="imStatus">Trạng thái</label>
+          <select class="input" id="imStatus"><option value="ongoing">Đang ra</option><option value="completed">Hoàn thành</option></select>
+        </div>
+        <div class="field"><label for="imCover">Ảnh bìa (tùy chọn)</label><input class="input" id="imCover" type="file" accept="image/*"></div>
+      </div>
+    </div>
+    <div class="section-head" style="margin-top:22px"><h2>Xem trước chương đã tách</h2><span class="muted" id="prevCount" style="font-size:13px">chưa phân tích</span></div>
+    <div class="preview-list" id="previewList"><div class="item muted">Chọn file và bấm “Phân tích chương” để xem kết quả tách.</div></div>
+    <div class="chapter-tools" style="margin-top:14px">
+      <button class="btn btn-primary" id="saveImport" disabled>Lưu vào hệ thống</button>
+      <span class="muted" style="font-size:13px">Nội dung trước đầu chương đầu tiên sẽ thành chương “Lời mở đầu”.</span>
+    </div>`;
+
+  let coverData = "";
+  const fileInput = $("#txtFile"), parseBtn = $("#parseBtn"), saveBtn = $("#saveImport");
+
+  fileInput.onchange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      txtState.raw = String(reader.result || "").replace(/\r\n?/g, "\n");
+      txtState.fileName = f.name;
+      txtState.chapters = [];
+      parseBtn.disabled = false;
+      saveBtn.disabled = true;
+      $("#fileInfo").textContent = `Đã nạp “${f.name}” — ${fmtBytes(f.size)}, ${txtState.raw.split("\n").length.toLocaleString("vi-VN")} dòng.`;
+      if (!$("#imTitle").value) $("#imTitle").value = f.name.replace(/\.txt$/i, "").replace(/[_-]+/g, " ").trim();
+      $("#previewList").innerHTML = '<div class="item muted">Bấm “Phân tích chương” để tách nội dung.</div>';
+    };
+    reader.onerror = () => toast("Không đọc được file này");
+    reader.readAsText(f, "UTF-8");
+  };
+
+  $("#imCover").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try { coverData = await compressImage(f); toast("Đã nạp ảnh bìa"); }
+    catch (err) { console.error(err); toast("Không đọc được ảnh này"); }
+  };
+
+  $("#resetPattern").onclick = () => { $("#txtPattern").value = DEFAULT_PATTERN; };
+
+  parseBtn.onclick = async () => {
+    let re;
+    try { re = new RegExp($("#txtPattern").value.trim(), "i"); }
+    catch (err) { toast("Biểu thức regex không hợp lệ"); return; }
+    parseBtn.disabled = true;
+    const chapters = await parseTxtToChapters(txtState.raw, re, (pct) => { $("#parseBar").style.width = pct + "%"; });
+    parseBtn.disabled = false;
+    txtState.chapters = chapters;
+    $("#prevCount").textContent = chapters.length + " chương tách được";
+    $("#previewList").innerHTML = chapters.length ? chapters.slice(0, 400).map((c) => `
+      <div class="item">
+        <div class="pt">Chương ${c.order} — ${esc(c.title || "Không tên")}</div>
+        <div class="pp">${esc((c.content || "").slice(0, 160))}</div>
+      </div>`).join("") + (chapters.length > 400 ? `<div class="item muted">… và ${chapters.length - 400} chương nữa</div>` : "")
+      : '<div class="item muted">Không tách được chương nào. Thử sửa biểu thức regex cho khớp định dạng file.</div>';
+    saveBtn.disabled = chapters.length === 0;
+    toast(chapters.length ? `Đã tách ${chapters.length} chương` : "Không tìm thấy đầu chương nào");
+  };
+
+  saveBtn.onclick = async () => {
+    const title = $("#imTitle").value.trim();
+    if (!title) { toast("Nhập tên truyện trước khi lưu"); return; }
+    if (!txtState.chapters.length) { toast("Chưa có chương nào để lưu"); return; }
+    saveBtn.disabled = true;
+    const now = Date.now();
+    const story = {
+      id: uid("st"), title,
+      author: $("#imAuthor").value.trim(),
+      description: "Nhập từ file " + (txtState.fileName || "văn bản") + ".",
+      genres: $("#imGenres").value.split(",").map((x) => x.trim()).filter(Boolean),
+      status: $("#imStatus").value,
+      cover: coverData, featured: false,
+      createdAt: now, updatedAt: now
+    };
+    await DB.put("stories", story);
+
+    // Ghi theo lô 200 chương / transaction để không chặn giao diện quá lâu
+    const batch = 200;
+    for (let i = 0; i < txtState.chapters.length; i += batch) {
+      const slice = txtState.chapters.slice(i, i + batch).map((c) => ({
+        id: uid("ch"), storyId: story.id, order: c.order, title: c.title,
+        content: c.content, createdAt: now, updatedAt: now
+      }));
+      await DB.bulkPut("chapters", slice);
+      $("#parseBar").style.width = Math.min(100, ((i + batch) / txtState.chapters.length) * 100) + "%";
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    invalidate(story.id);
+    toast(`Đã lưu “${title}” với ${txtState.chapters.length} chương`);
+    txtState = { raw: "", chapters: [], fileName: "", cover: "" };
+    adminTab = "stories";
+    render();
+  };
+}
+
+/**
+ * Tách văn bản thô thành danh sách chương.
+ * Xử lý theo lô dòng và nhường luồng cho trình duyệt sau mỗi lô,
+ * nhờ vậy file vài chục MB vẫn không làm treo giao diện.
+ */
+function parseTxtToChapters(raw, regex, onProgress) {
+  return new Promise((resolve) => {
+    const lines = String(raw || "").split("\n");
+    const result = [];
+    let buffer = [];
+    let current = null;
+    let i = 0;
+    const CHUNK = 4000;
+
+    const flush = () => {
+      const content = buffer.join("\n").trim();
+      if (current) {
+        current.content = content;
+        result.push(current);
+      } else if (content) {
+        result.push({ order: 0, title: "Lời mở đầu", content });
+      }
+      buffer = [];
+    };
+
+    const step = () => {
+      const end = Math.min(i + CHUNK, lines.length);
+      for (; i < end; i++) {
+        const line = lines[i];
+        const m = line.length < 200 ? line.match(regex) : null;
+        if (m) {
+          flush();
+          const num = parseRomanOrInt(m[1]);
+          current = { order: num, title: (m[2] || "").trim() || line.trim(), content: "" };
+        } else {
+          buffer.push(line);
+        }
+      }
+      if (onProgress) onProgress(Math.round((i / Math.max(1, lines.length)) * 100));
+      if (i < lines.length) setTimeout(step, 0);
+      else {
+        flush();
+        // Chuẩn hóa số thứ tự: luôn liên tục từ 1 để điều hướng chính xác
+        result.forEach((c, idx) => { c.order = idx + 1; });
+        if (onProgress) onProgress(100);
+        resolve(result);
+      }
+    };
+    step();
+  });
+}
+
+/** Đọc số chương ở cả dạng số Ả Rập và số La Mã. */
+function parseRomanOrInt(token) {
+  const t = String(token || "").trim();
+  if (/^[0-9]+$/.test(t)) return parseInt(t, 10);
+  const map = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  const up = t.toUpperCase();
+  let total = 0;
+  for (let i = 0; i < up.length; i++) {
+    const cur = map[up[i]], next = map[up[i + 1]];
+    if (!cur) return 0;
+    total += next && next > cur ? -cur : cur;
+  }
+  return total;
+}
+
+/* --------- 11.4 Sao lưu & phục hồi --------- */
+function panelBackup() {
+  const panel = $("#adminPanel");
+  panel.innerHTML = `
+    <div class="two-col">
+      <div class="card" style="padding:20px">
+        <h3 style="margin-top:0;font-family:Literata,serif">Xuất dữ liệu</h3>
+        <p class="muted" style="font-size:14px">Tải toàn bộ truyện, chương, ảnh bìa và cài đặt cá nhân về máy dưới dạng một file JSON.</p>
+        <button class="btn btn-primary" id="exportBtn">Tải file sao lưu .json</button>
+      </div>
+      <div class="card" style="padding:20px">
+        <h3 style="margin-top:0;font-family:Literata,serif">Nhập dữ liệu</h3>
+        <p class="muted" style="font-size:14px">Chọn file .json đã sao lưu. Bạn sẽ được hỏi muốn gộp thêm hay thay thế toàn bộ kho hiện tại.</p>
+        <input class="input" id="importFile" type="file" accept="application/json,.json">
+      </div>
+    </div>
+    <div class="card" style="padding:20px;margin-top:18px">
+      <h3 style="margin-top:0;font-family:Literata,serif">Xóa sạch dữ liệu</h3>
+      <p class="muted" style="font-size:14px">Xóa mọi truyện, chương, lịch sử đọc và danh sách yêu thích trên trình duyệt này.</p>
+      <button class="btn btn-danger" id="wipeBtn">Xóa toàn bộ dữ liệu</button>
+    </div>`;
+
+  $("#exportBtn").onclick = async () => {
+    const data = {
+      app: "thu-quan",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      stories: await DB.all("stories"),
+      chapters: await DB.all("chapters"),
+      settings, favorites, history
+    };
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "thu-quan-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("Đã tải file sao lưu");
+  };
+
+  $("#importFile").onchange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      let data;
+      try { data = JSON.parse(reader.result); }
+      catch (err) { toast("File JSON không hợp lệ"); return; }
+      if (!data || !Array.isArray(data.stories) || !Array.isArray(data.chapters)) {
+        toast("File không đúng định dạng sao lưu của Thư Quán");
+        return;
+      }
+      const replace = await confirmDialog(
+        "Thay thế toàn bộ dữ liệu hiện tại?",
+        `File chứa ${data.stories.length} truyện và ${data.chapters.length} chương. Chọn “Thay thế” để xóa kho hiện tại, hoặc “Hủy” rồi bấm lại để gộp thêm.`,
+        "Thay thế"
+      );
+      if (replace) await DB.clearAll();
+      await DB.bulkPut("stories", data.stories);
+      for (let i = 0; i < data.chapters.length; i += 300) {
+        await DB.bulkPut("chapters", data.chapters.slice(i, i + 300));
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      if (data.settings) { settings = Object.assign({}, DEFAULT_SETTINGS, data.settings); saveSettings(); applySettings(); }
+      if (Array.isArray(data.favorites)) { favorites = data.favorites; saveFavorites(); }
+      if (Array.isArray(data.history)) { history = data.history; saveHistory(); }
+      invalidate();
+      toast(`Đã nhập ${data.stories.length} truyện`);
+      render();
+    };
+    reader.onerror = () => toast("Không đọc được file");
+    reader.readAsText(f, "UTF-8");
+  };
+
+  $("#wipeBtn").onclick = async () => {
+    const ok = await confirmDialog("Xóa toàn bộ dữ liệu?", "Mọi truyện, chương, lịch sử và yêu thích sẽ biến mất. Hãy xuất file sao lưu trước nếu cần.", "Xóa hết");
+    if (!ok) return;
+    await DB.clearAll();
+    favorites = []; history = [];
+    saveFavorites(); saveHistory();
+    invalidate();
+    await seedIfEmpty();
+    toast("Đã xóa sạch và tạo lại truyện mẫu");
+    render();
+  };
+}
+
+/* ---------------------------------------------------------------------
+ * 12. Sự kiện toàn cục
+ * ------------------------------------------------------------------ */
+document.addEventListener("click", (e) => {
+  const navBtn = e.target.closest("[data-nav]");
+  if (navBtn) { go(navBtn.dataset.nav); return; }
+
+  const card = e.target.closest("[data-story]");
+  if (card) { go("#/story/" + encodeURIComponent(card.dataset.story)); return; }
+
+  const fav = e.target.closest("[data-fav]");
+  if (fav) {
+    const id = fav.dataset.fav;
+    if (favorites.includes(id)) { favorites = favorites.filter((x) => x !== id); toast("Đã bỏ theo dõi"); }
+    else { favorites.push(id); toast("Đã thêm vào yêu thích"); }
+    saveFavorites();
+    render();
+  }
+});
+
+$("#themeToggle").onclick = () => {
+  settings.theme = settings.theme === "dark" ? "light" : "dark";
+  saveSettings(); applySettings();
+  toast(settings.theme === "dark" ? "Đang dùng nền tối" : "Đang dùng nền sáng");
+};
+
+$("#globalSearch").addEventListener("input", debounce((e) => {
+  filterState.q = e.target.value;
+  if (currentRoute.name === "library") refreshGrid();
+  else go("#/library");
+}, 220));
+
+// Phím tắt: mũi tên trái/phải đổi chương, Esc thoát chế độ tập trung
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input,textarea,select")) return;
+  if (currentRoute.name === "reader") {
+    if (e.key === "ArrowLeft" && readerState.index > 0) {
+      go(`#/read/${encodeURIComponent(readerState.story.id)}/${encodeURIComponent(readerState.chapters[readerState.index - 1].id)}`);
+    } else if (e.key === "ArrowRight" && readerState.index < readerState.chapters.length - 1) {
+      go(`#/read/${encodeURIComponent(readerState.story.id)}/${encodeURIComponent(readerState.chapters[readerState.index + 1].id)}`);
+    }
+  }
+  if (e.key === "Escape") {
+    if ($("#modalRoot").innerHTML) { closeModal(); return; }
+    if (settings.focus) {
+      settings.focus = false; saveSettings(); applySettings();
+      document.body.classList.remove("focus-mode");
+      toast("Đã tắt chế độ đọc tập trung");
+    }
+  }
+});
+
+window.addEventListener("hashchange", render);
+
+/* ---------------------------------------------------------------------
+ * 13. Khởi động ứng dụng
+ * ------------------------------------------------------------------ */
+(async function init() {
+  applySettings();
+  try {
+    await DB.open();
+  } catch (err) {
+    console.error(err);
+    view.innerHTML = '<div class="wrap"><div class="empty" style="margin-top:40px"><strong>Trình duyệt chặn IndexedDB</strong>Ứng dụng cần IndexedDB để lưu truyện. Hãy tắt chế độ duyệt web riêng tư hoặc cho phép lưu dữ liệu cho trang này.</div></div>';
+    return;
+  }
+  await seedIfEmpty();
+  await refreshStories();
+  if (!location.hash) location.hash = "#/";
+  await render();
+})();
+
+})();
+</script>
+</body>
+</html>
